@@ -531,7 +531,7 @@ export default function App() {
             sha:     c.sha,
             message: c.commit.message.split("\n")[0],
             author:  c.commit.author.name,
-            avatar:  c.author?.avatar_url ?? "",
+            avatar:  c.avatar_url ?? "",
             url:     c.html_url,
             date:    c.commit.author.date
           }))
