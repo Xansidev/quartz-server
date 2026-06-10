@@ -141,6 +141,21 @@ const globalCSS = `
   .tab-btn:hover { border-color: ${C.purple}; color: ${C.text}; }
   .tab-btn.active { background: ${C.purple}20; border-color: ${C.purple}; color: ${C.purple}; }
 
+  .pkg-tab-btn {
+    padding: 7px 20px;
+    border-radius: 6px;
+    border: 1px solid ${C.border};
+    background: transparent;
+    color: ${C.muted};
+    font-size: 13px;
+    font-weight: 500;
+    cursor: none;
+    transition: all 0.2s;
+    font-family: 'Inter', sans-serif;
+  }
+  .pkg-tab-btn:hover { border-color: ${C.purple}40; color: ${C.text}; }
+  .pkg-tab-btn.active { background: ${C.purple}18; border-color: ${C.purple}; color: ${C.purple}; }
+
   .code-block {
     background: #0d0d14;
     border: 1px solid ${C.border};
@@ -231,27 +246,28 @@ const globalCSS = `
   .topics-scroll-wrap {
     width: 100%;
     overflow-y: auto;
-    max-height: calc(100vh - 220px);
+    max-height: calc(100vh - 120px);
     scroll-behavior: smooth;
+    padding-right: 8px;
   }
   .topics-scroll-wrap::-webkit-scrollbar { width: 3px; }
   .topics-scroll-wrap::-webkit-scrollbar-thumb { background: ${C.border}; border-radius: 2px; }
 
   .topic-section {
-    padding: 32px 0;
+    padding: 36px 0;
     border-bottom: 1px solid ${C.border};
     animation: fadeIn 0.3s ease both;
   }
-  .topic-section:last-child { border-bottom: none; }
+  .topic-section:last-child { border-bottom: none; padding-bottom: 80px; }
   .topic-section h2 {
-    font-size: 18px; font-weight: 700; color: ${C.white};
+    font-size: 20px; font-weight: 700; color: ${C.white};
     margin-bottom: 6px; display: flex; align-items: center; gap: 10px;
   }
   .topic-section h3 {
     font-size: 12px; font-weight: 500; color: ${C.purple};
-    margin: 20px 0 8px; text-transform: uppercase; letter-spacing: 0.08em;
+    margin: 24px 0 10px; text-transform: uppercase; letter-spacing: 0.08em;
   }
-  .topic-section p { font-size: 14px; color: ${C.muted}; line-height: 1.7; margin-bottom: 12px; }
+  .topic-section p { font-size: 14.5px; color: ${C.muted}; line-height: 1.8; margin-bottom: 14px; }
   .topic-section code {
     font-family: 'JetBrains Mono', monospace; font-size: 12px;
     background: #1a1a24; padding: 2px 6px; border-radius: 4px; color: ${C.blue};
@@ -454,7 +470,7 @@ function LangDonut({ langs, logoSrc }: { langs: LangData[]; logoSrc: string }) {
   );
 }
 
-// ── Package Manager Page (replaces old PackageManagerPage + DocsPage) ─────────
+// ── Topics data ───────────────────────────────────────────
 const TOPICS = [
   {
     id: "intro",
@@ -599,13 +615,19 @@ const TOPICS = [
   },
 ];
 
+// ── Package Manager Page ──────────────────────────────────
 function PackageManagerPage() {
   const [langs, setLangs]       = useState<LangData[]>([]);
   const [loading, setLoading]   = useState(true);
   const [repoInfo, setRepoInfo] = useState<{ stars: number; desc: string } | null>(null);
   const [activeTopicId, setActiveTopicId] = useState("intro");
+  const [topicSearch, setTopicSearch]     = useState("");
   const topicRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  const filteredTopics = topicSearch.trim()
+    ? TOPICS.filter(t => t.label.toLowerCase().includes(topicSearch.toLowerCase()))
+    : TOPICS;
 
   useEffect(() => {
     Promise.all([
@@ -629,7 +651,6 @@ function PackageManagerPage() {
     }
   }
 
-  // Update active topic on scroll
   useEffect(() => {
     const container = scrollRef.current;
     if (!container) return;
@@ -647,14 +668,12 @@ function PackageManagerPage() {
   }, []);
 
   return (
-    <div className="fade-in" style={{ display: "flex", gap: 40, maxWidth: 960, margin: "0 auto", width: "100%" }}>
-      {/* Left: intro + lang donut */}
+    <div className="fade-in" style={{ display: "flex", gap: 32, width: "100%" }}>
+
+      {/* ── Left column: hero + donut (unchanged sizes) ── */}
       <div style={{ width: 300, flexShrink: 0, display: "flex", flexDirection: "column", gap: 20 }}>
-        {/* Hero intro */}
+        {/* Hero intro — no "Xansidev / qlpm" label */}
         <div style={{ textAlign: "center" }}>
-          <div style={{ fontSize: 11, letterSpacing: "0.14em", color: C.purple, textTransform: "uppercase", marginBottom: 8 }}>
-            Xansidev / qlpm
-          </div>
           <h1 style={{ fontSize: 48, fontWeight: 800, color: C.white, letterSpacing: "-0.04em", lineHeight: 1, marginBottom: 10 }}>
             QLPM
           </h1>
@@ -680,7 +699,7 @@ function PackageManagerPage() {
           </a>
         </div>
 
-        {/* Lang donut */}
+        {/* Lang donut — unchanged */}
         <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 12, padding: "24px 20px" }}>
           <div style={{ fontSize: 10, letterSpacing: "0.1em", color: C.muted, textTransform: "uppercase", marginBottom: 20, textAlign: "center" }}>Languages</div>
           {loading
@@ -692,12 +711,29 @@ function PackageManagerPage() {
         </div>
       </div>
 
-      {/* Right: topics sidebar + infinite scroll content */}
-      <div style={{ flex: 1, display: "flex", gap: 24, minWidth: 0 }}>
-        {/* Topics nav */}
-        <div style={{ width: 150, flexShrink: 0 }}>
-          <div style={{ fontSize: 10, letterSpacing: "0.1em", color: C.muted, textTransform: "uppercase", marginBottom: 12 }}>Topics</div>
-          {TOPICS.map(t => (
+      {/* ── Middle column: topics nav (unchanged size) ── */}
+      <div style={{ width: 160, flexShrink: 0, paddingTop: 4 }}>
+        {/* Topics search */}
+        <div style={{ position: "relative", marginBottom: 12 }}>
+          <svg style={{ position: "absolute", left: 9, top: "50%", transform: "translateY(-50%)", opacity: 0.4, pointerEvents: "none" }}
+            width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={C.text} strokeWidth="2">
+            <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+          </svg>
+          <input
+            className="search-input"
+            type="text"
+            placeholder="Search…"
+            value={topicSearch}
+            onChange={e => setTopicSearch(e.target.value)}
+            style={{ padding: "7px 10px 7px 28px", fontSize: 12 }}
+          />
+        </div>
+
+        <div style={{ fontSize: 10, letterSpacing: "0.1em", color: C.muted, textTransform: "uppercase", marginBottom: 10 }}>Topics</div>
+
+        {filteredTopics.length === 0
+          ? <div style={{ fontSize: 12, color: C.muted, padding: "4px 0" }}>No matches.</div>
+          : filteredTopics.map(t => (
             <div key={t.id} onClick={() => scrollToTopic(t.id)}
               style={{
                 padding: "7px 10px", borderRadius: 6, cursor: "none", fontSize: 13,
@@ -710,27 +746,28 @@ function PackageManagerPage() {
               <span style={{ fontSize: 10, opacity: 0.7 }}>{t.icon}</span>
               {t.label}
             </div>
-          ))}
-        </div>
-
-        {/* Infinite scroll content */}
-        <div ref={scrollRef} className="topics-scroll-wrap" style={{ flex: 1 }}>
-          {TOPICS.map(t => (
-            <div
-              key={t.id}
-              ref={el => { topicRefs.current[t.id] = el; }}
-              className="topic-section"
-            >
-              <h2>
-                <span style={{ fontSize: 14, color: C.purple, fontFamily: "JetBrains Mono" }}>{t.icon}</span>
-                {t.label}
-              </h2>
-              <div style={{ width: 24, height: 2, background: C.purple, borderRadius: 1, margin: "8px 0 16px" }} />
-              {t.content}
-            </div>
-          ))}
-        </div>
+          ))
+        }
       </div>
+
+      {/* ── Right column: infinite scroll content, takes all remaining space ── */}
+      <div ref={scrollRef} className="topics-scroll-wrap" style={{ flex: 1, minWidth: 0 }}>
+        {TOPICS.map(t => (
+          <div
+            key={t.id}
+            ref={el => { topicRefs.current[t.id] = el; }}
+            className="topic-section"
+          >
+            <h2>
+              <span style={{ fontSize: 14, color: C.purple, fontFamily: "JetBrains Mono" }}>{t.icon}</span>
+              {t.label}
+            </h2>
+            <div style={{ width: 24, height: 2, background: C.purple, borderRadius: 1, margin: "8px 0 20px" }} />
+            {t.content}
+          </div>
+        ))}
+      </div>
+
     </div>
   );
 }
@@ -763,7 +800,7 @@ function HomePage({ pkgCount }: { pkgCount: number }) {
   return (
     <div className="fade-in" style={{ position: "relative", display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center", minHeight: "calc(100vh - 156px)", overflow: "visible" }}>
 
-      {/* Full-page background logo — fixed so it never clips */}
+      {/* Background logo — position: fixed so it never moves on scroll */}
       <img src="/quartzlinux-colored.svg" alt="" aria-hidden
         style={{
           position: "fixed",
@@ -810,7 +847,6 @@ function HomePage({ pkgCount }: { pkgCount: number }) {
             className="hero-btn hero-btn-ghost"
             style={{ display: "inline-flex", alignItems: "center", gap: 8 }}
           >
-            {/* GitHub SVG icon — inline white SVG, no download needed */}
             <svg width="16" height="16" viewBox="0 0 24 24" fill="white" xmlns="http://www.w3.org/2000/svg">
               <path d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0 1 12 6.844a9.59 9.59 0 0 1 2.504.337c1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0 0 22 12.017C22 6.484 17.522 2 12 2z"/>
             </svg>
@@ -832,27 +868,46 @@ function HomePage({ pkgCount }: { pkgCount: number }) {
   );
 }
 
+// ── Packages page (Core / Extra tabs, full screen width) ──
+type PkgEntry = { name: string; category: string };
+
 function PackagesPage() {
-  const [list, setList]         = useState<string[]>([]);
-  const [filtered, setFiltered] = useState<string[]>([]);
+  const [list, setList]         = useState<PkgEntry[]>([]);
   const [query, setQuery]       = useState("");
   const [selected, setSelected] = useState<string | null>(null);
   const [detail, setDetail]     = useState<PackageDetail | null>(null);
   const [commit, setCommit]     = useState<CommitInfo | null>(null);
   const [loading, setLoading]   = useState(true);
   const [detailLoading, setDetailLoading] = useState(false);
+  const [pkgTab, setPkgTab]     = useState<"core" | "extra">("core");
 
   useEffect(() => {
     fetch(`${SERVER}/packages`)
       .then(r => r.json())
-      .then(d => { setList(d.packages ?? []); setFiltered(d.packages ?? []); setLoading(false); })
+      .then(d => {
+        // Support both old flat string[] and new {name, category}[] response shapes
+        const raw = d.packages ?? [];
+        const normalized: PkgEntry[] = raw.map((p: any) =>
+          typeof p === "string" ? { name: p, category: "extra" } : { name: p.name, category: p.category ?? "extra" }
+        );
+        setList(normalized);
+        setLoading(false);
+      })
       .catch(() => setLoading(false));
   }, []);
 
+  const coreList  = list.filter(p => p.category === "core");
+  const extraList = list.filter(p => p.category !== "core");
+  const activeList = pkgTab === "core" ? coreList : extraList;
+
+  const displayList = query.trim()
+    ? list.filter(p => p.name.toLowerCase().includes(query.toLowerCase()))
+    : activeList;
+
   useEffect(() => {
-    const q = query.toLowerCase().trim();
-    setFiltered(q ? list.filter(n => n.toLowerCase().includes(q)) : list);
-  }, [query, list]);
+    setSelected(null);
+    setDetail(null);
+  }, [pkgTab]);
 
   async function selectPkg(name: string) {
     setSelected(name); setDetail(null); setCommit(null); setDetailLoading(true);
@@ -869,8 +924,11 @@ function PackagesPage() {
   }
 
   return (
-    <div className="fade-in" style={{ display: "flex", gap: 28, height: "calc(100vh - 120px)", maxWidth: 960, margin: "0 auto", width: "100%" }}>
-      <div style={{ width: 240, flexShrink: 0, display: "flex", flexDirection: "column", gap: 10 }}>
+    <div className="fade-in" style={{ display: "flex", gap: 28, height: "calc(100vh - 120px)", width: "100%" }}>
+
+      {/* Left: search + Core/Extra tabs + package list */}
+      <div style={{ width: 280, flexShrink: 0, display: "flex", flexDirection: "column", gap: 10 }}>
+        {/* Search */}
         <div style={{ position: "relative" }}>
           <svg style={{ position: "absolute", left: 11, top: "50%", transform: "translateY(-50%)", opacity: 0.4, pointerEvents: "none" }}
             width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={C.text} strokeWidth="2">
@@ -878,22 +936,47 @@ function PackagesPage() {
           </svg>
           <input className="search-input" type="text" placeholder="Search packages…" value={query} onChange={e => setQuery(e.target.value)} />
         </div>
+
+        {/* Core / Extra tabs */}
+        <div style={{ display: "flex", gap: 6 }}>
+          <button className={`pkg-tab-btn${pkgTab === "core" ? " active" : ""}`} style={{ flex: 1 }} onClick={() => { setPkgTab("core"); setQuery(""); }}>
+            Core
+            <span style={{ marginLeft: 6, fontSize: 11, color: pkgTab === "core" ? C.purple : C.muted, fontFamily: "JetBrains Mono" }}>
+              {coreList.length > 0 ? coreList.length : ""}
+            </span>
+          </button>
+          <button className={`pkg-tab-btn${pkgTab === "extra" ? " active" : ""}`} style={{ flex: 1 }} onClick={() => { setPkgTab("extra"); setQuery(""); }}>
+            Extra
+            <span style={{ marginLeft: 6, fontSize: 11, color: pkgTab === "extra" ? C.purple : C.muted, fontFamily: "JetBrains Mono" }}>
+              {extraList.length > 0 ? extraList.length : ""}
+            </span>
+          </button>
+        </div>
+
+        {/* Package list */}
         <div style={{ flex: 1, overflowY: "auto", display: "flex", flexDirection: "column", gap: 6 }}>
           {loading
-            ? [1,2,3,4].map(i => <Skeleton key={i} h={44} />)
-            : filtered.length === 0
-              ? <div style={{ color: C.muted, fontSize: 13, padding: "12px 4px" }}>No packages found.</div>
-              : filtered.map((name, i) => (
-                <div key={name} className={`pkg-card${selected === name ? " active" : ""} slide-in`}
-                  style={{ animationDelay: `${Math.min(i, 20) * 0.03}s` }} onClick={() => selectPkg(name)}>
-                  <span style={{ color: selected === name ? C.purple : C.blue, fontSize: 10, flexShrink: 0 }}>◆</span>
-                  {name}
+            ? [1,2,3,4,5,6].map(i => <Skeleton key={i} h={44} />)
+            : displayList.length === 0
+              ? <div style={{ color: C.muted, fontSize: 13, padding: "12px 4px" }}>
+                  {query ? "No packages match your search." : `No ${pkgTab} packages found.`}
+                </div>
+              : displayList.map((pkg, i) => (
+                <div key={pkg.name} className={`pkg-card${selected === pkg.name ? " active" : ""} slide-in`}
+                  style={{ animationDelay: `${Math.min(i, 20) * 0.03}s` }} onClick={() => selectPkg(pkg.name)}>
+                  <span style={{ color: selected === pkg.name ? C.purple : C.blue, fontSize: 10, flexShrink: 0 }}>◆</span>
+                  <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{pkg.name}</span>
+                  {query && pkg.category === "core" && (
+                    <span style={{ fontSize: 9, color: C.purple, opacity: 0.6, letterSpacing: "0.06em", textTransform: "uppercase" }}>core</span>
+                  )}
                 </div>
               ))
           }
         </div>
       </div>
-      <div style={{ flex: 1, overflowY: "auto" }}>
+
+      {/* Right: package detail — takes full remaining space */}
+      <div style={{ flex: 1, overflowY: "auto", minWidth: 0 }}>
         {!selected && !loading && (
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "100%", gap: 12, color: C.muted }}>
             <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" opacity={0.4}>
@@ -902,15 +985,29 @@ function PackagesPage() {
             <span style={{ fontSize: 13 }}>Select a package to view its details</span>
           </div>
         )}
-        {detailLoading && <div style={{ padding: 4 }}><Skeleton w="40%" h={24} /><Skeleton w="60%" /><Skeleton w="100%" h={180} /></div>}
+        {detailLoading && (
+          <div style={{ padding: 4 }}>
+            <Skeleton w="40%" h={24} />
+            <Skeleton w="60%" />
+            <Skeleton w="100%" h={180} />
+          </div>
+        )}
         {detail && !detailLoading && (
-          <div className="fade-in">
+          <div className="fade-in" style={{ maxWidth: 860 }}>
             <div style={{ marginBottom: 8, display: "flex", alignItems: "baseline", gap: 10 }}>
-              <span style={{ fontSize: 24, fontWeight: 700, color: C.white }}>{detail.package?.name}</span>
+              <span style={{ fontSize: 28, fontWeight: 700, color: C.white }}>{detail.package?.name}</span>
               <span style={{ fontSize: 12, color: C.muted, fontFamily: "JetBrains Mono" }}>v{detail.package?.version}</span>
+              {detail.package?.category === "core" && (
+                <span style={{ fontSize: 10, color: C.purple, border: `1px solid ${C.purple}40`, borderRadius: 4, padding: "2px 7px", letterSpacing: "0.06em", textTransform: "uppercase" }}>core</span>
+              )}
             </div>
-            <p style={{ fontSize: 13, color: C.muted, marginBottom: 20 }}>{detail.package?.description}</p>
-            {commit && (<><div style={{ fontSize: 10, letterSpacing: "0.1em", color: C.muted, textTransform: "uppercase", marginBottom: 8 }}>Latest Commit</div><CommitBadge commit={commit} /></>)}
+            <p style={{ fontSize: 14, color: C.muted, marginBottom: 24 }}>{detail.package?.description}</p>
+            {commit && (
+              <>
+                <div style={{ fontSize: 10, letterSpacing: "0.1em", color: C.muted, textTransform: "uppercase", marginBottom: 8 }}>Latest Commit</div>
+                <CommitBadge commit={commit} />
+              </>
+            )}
             <div style={{ fontSize: 10, letterSpacing: "0.1em", color: C.muted, textTransform: "uppercase", marginBottom: 8 }}>QZMAKE</div>
             <QZMAKEView pkg={detail} />
           </div>
@@ -920,7 +1017,7 @@ function PackagesPage() {
   );
 }
 
-// ── Installation page (empty, for you, YES FKN YOU XANSI, to fill :3) ───────────
+// ── Installation page ─────────────────────────────────────
 function InstallationPage() {
   return (
     <div className="fade-in" style={{ maxWidth: 720, margin: "0 auto", width: "100%" }}>
@@ -1002,7 +1099,6 @@ function ContribPage() {
 function FooterBar() {
   return (
     <div className="footer-bar">
-      {/* Left: React logo + label */}
       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
         <img
           src="/react.svg"
@@ -1012,8 +1108,6 @@ function FooterBar() {
         />
         <span style={{ fontSize: 11, color: C.muted }}>Built with React</span>
       </div>
-
-      {/* Right: designer credit */}
       <div style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11, color: C.muted }}>
         website designer{" "}
         <a
@@ -1036,6 +1130,7 @@ function FooterBar() {
   );
 }
 
+// ── Root App ──────────────────────────────────────────────
 export default function App() {
   const [page, setPage]         = useState<"home" | "packages" | "pkgmgr" | "installation" | "contrib">("home");
   const [pkgCount, setPkgCount] = useState(0);
@@ -1081,8 +1176,14 @@ export default function App() {
         </nav>
       </header>
 
-      {/* Extra bottom padding so footer bar doesn't overlap content */}
-      <main style={{ paddingTop: 96, paddingLeft: 40, paddingRight: 40, paddingBottom: 80, maxWidth: 1100, margin: "0 auto" }}>
+      <main style={{
+        paddingTop: 96,
+        paddingLeft: 40,
+        paddingRight: 40,
+        paddingBottom: 80,
+        // No maxWidth constraint for full screen usage
+        width: "100%",
+      }}>
         {page === "home"         && <HomePage pkgCount={pkgCount} />}
         {page === "packages"     && <PackagesPage />}
         {page === "pkgmgr"       && <PackageManagerPage />}
