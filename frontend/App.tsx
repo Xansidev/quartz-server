@@ -12,6 +12,7 @@ const C = {
   blue:    "#4FC3F7",
   white:   "#ffffff",
   orange:  "#FF7A00",
+  yellow:  "#FFD600",
 };
 
 type Contributor = { login: string; avatar: string; contributions: number; url: string };
@@ -102,7 +103,7 @@ const globalCSS = `
     width: 260px; height: 260px;
     border-radius: 50%;
     pointer-events: none;
-    z-index: 9998;
+    z-index: 1;
     transform: translate(-50%, -50%);
     background: radial-gradient(circle, rgba(167,139,250,0.18) 0%, rgba(167,139,250,0.07) 40%, transparent 70%);
     filter: blur(18px);
@@ -200,6 +201,76 @@ const globalCSS = `
     transition: border-color 0.2s, transform 0.2s;
   }
   .stat-card:hover { border-color: ${C.purple}40; transform: translateY(-2px); }
+
+  .hero-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 11px 22px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    font-family: 'Inter', sans-serif;
+    cursor: none;
+    transition: all 0.2s;
+    border: none;
+  }
+  .hero-btn-yellow {
+    background: ${C.yellow};
+    color: #0a0a0f;
+  }
+  .hero-btn-yellow:hover { background: #ffe033; transform: translateY(-1px); box-shadow: 0 4px 20px rgba(255,214,0,0.25); }
+  .hero-btn-ghost {
+    background: transparent;
+    color: ${C.text};
+    border: 1px solid ${C.border} !important;
+  }
+  .hero-btn-ghost:hover { border-color: ${C.purple} !important; color: ${C.purple}; transform: translateY(-1px); }
+
+  /* Infinite scroll topics */
+  .topics-scroll-wrap {
+    width: 100%;
+    overflow-y: auto;
+    max-height: calc(100vh - 220px);
+    scroll-behavior: smooth;
+  }
+  .topics-scroll-wrap::-webkit-scrollbar { width: 3px; }
+  .topics-scroll-wrap::-webkit-scrollbar-thumb { background: ${C.border}; border-radius: 2px; }
+
+  .topic-section {
+    padding: 32px 0;
+    border-bottom: 1px solid ${C.border};
+    animation: fadeIn 0.3s ease both;
+  }
+  .topic-section:last-child { border-bottom: none; }
+  .topic-section h2 {
+    font-size: 18px; font-weight: 700; color: ${C.white};
+    margin-bottom: 6px; display: flex; align-items: center; gap: 10px;
+  }
+  .topic-section h3 {
+    font-size: 12px; font-weight: 500; color: ${C.purple};
+    margin: 20px 0 8px; text-transform: uppercase; letter-spacing: 0.08em;
+  }
+  .topic-section p { font-size: 14px; color: ${C.muted}; line-height: 1.7; margin-bottom: 12px; }
+  .topic-section code {
+    font-family: 'JetBrains Mono', monospace; font-size: 12px;
+    background: #1a1a24; padding: 2px 6px; border-radius: 4px; color: ${C.blue};
+  }
+
+  /* Footer bar */
+  .footer-bar {
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    height: 40px;
+    background: ${C.surface};
+    border-top: 1px solid ${C.border};
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 20px;
+    z-index: 100;
+    backdrop-filter: blur(12px);
+  }
 
   * { cursor: none !important; }
 `;
@@ -383,10 +454,158 @@ function LangDonut({ langs, logoSrc }: { langs: LangData[]; logoSrc: string }) {
   );
 }
 
+// ── Package Manager Page (replaces old PackageManagerPage + DocsPage) ─────────
+const TOPICS = [
+  {
+    id: "intro",
+    label: "Introduction",
+    icon: "◆",
+    content: (
+      <>
+        <p>
+          QLPM (Quartz Linux Package Manager) is a fast, declarative package manager built for developers.
+          Every package is described by a <code>QZMAKE</code> file — a plain TOML document that specifies
+          where to fetch the binary, what to install, and how to remove it cleanly.
+        </p>
+        <p>
+          There are no hidden scripts, no daemon processes, and no global state beyond a small JSON lock file.
+          If you can read TOML, you can audit any package in the registry.
+        </p>
+      </>
+    ),
+  },
+  {
+    id: "install",
+    label: "Install",
+    icon: "↓",
+    content: (
+      <>
+        <h3>Installing a package</h3>
+        <p>
+          Use <code>qz -i</code> followed by the package name. QLPM fetches the QZMAKE from the registry,
+          shows you what it will place on disk, and asks for confirmation before touching anything.
+        </p>
+        <div className="code-block" style={{ marginBottom: 16, fontSize: 12 }}>
+          <div><span style={{ color: C.muted }}># install a single package</span></div>
+          <div><span style={{ color: C.purple }}>qz</span> <span style={{ color: C.blue }}>-i</span> <span style={{ color: "#6ee7b7" }}>ripgrep</span></div>
+          <div style={{ marginTop: 8 }}><span style={{ color: C.muted }}># install multiple at once</span></div>
+          <div><span style={{ color: C.purple }}>qz</span> <span style={{ color: C.blue }}>-i</span> <span style={{ color: "#6ee7b7" }}>ripgrep neovim fd</span></div>
+        </div>
+        <h3>Flags</h3>
+        <p><code>--yes</code> skips confirmation. Useful for scripts and CI environments.</p>
+        <div className="code-block" style={{ fontSize: 12 }}>
+          <div><span style={{ color: C.purple }}>qz</span> <span style={{ color: C.blue }}>-i</span> <span style={{ color: "#6ee7b7" }}>ripgrep</span> <span style={{ color: C.orange }}>--yes</span></div>
+        </div>
+      </>
+    ),
+  },
+  {
+    id: "remove",
+    label: "Remove",
+    icon: "✕",
+    content: (
+      <>
+        <h3>Removing a package</h3>
+        <p>
+          Use <code>qz -r</code> to remove. QLPM reads the <code>[remove]</code> section of the QZMAKE
+          and deletes only the files it placed — nothing more, nothing less.
+        </p>
+        <div className="code-block" style={{ fontSize: 12 }}>
+          <div><span style={{ color: C.purple }}>qz</span> <span style={{ color: C.blue }}>-r</span> <span style={{ color: "#6ee7b7" }}>ripgrep</span></div>
+        </div>
+      </>
+    ),
+  },
+  {
+    id: "update",
+    label: "Update",
+    icon: "↑",
+    content: (
+      <>
+        <h3>Update a single package</h3>
+        <p>QLPM checks the registry for a newer version and reinstalls if one exists.</p>
+        <div className="code-block" style={{ marginBottom: 16, fontSize: 12 }}>
+          <div><span style={{ color: C.purple }}>qz</span> <span style={{ color: C.blue }}>-u</span> <span style={{ color: "#6ee7b7" }}>ripgrep</span></div>
+        </div>
+        <h3>Update everything</h3>
+        <p>Running without a package name updates all installed packages in one pass.</p>
+        <div className="code-block" style={{ fontSize: 12 }}>
+          <div><span style={{ color: C.purple }}>qz</span> <span style={{ color: C.blue }}>-u</span></div>
+        </div>
+      </>
+    ),
+  },
+  {
+    id: "search",
+    label: "Search",
+    icon: "⌕",
+    content: (
+      <>
+        <h3>Searching the registry</h3>
+        <p>Use <code>qz -s</code> to search packages by name or keyword. Results show name, version, and a short description.</p>
+        <div className="code-block" style={{ fontSize: 12 }}>
+          <div><span style={{ color: C.purple }}>qz</span> <span style={{ color: C.blue }}>-s</span> <span style={{ color: "#6ee7b7" }}>neovim</span></div>
+        </div>
+      </>
+    ),
+  },
+  {
+    id: "qzmake",
+    label: "QZMAKE format",
+    icon: "⊞",
+    content: (
+      <>
+        <h3>What is a QZMAKE file?</h3>
+        <p>
+          Every package in the Quartz registry is described by a <code>QZMAKE</code> file — a TOML document
+          with five required sections. Here is an annotated example:
+        </p>
+        <div className="code-block" style={{ fontSize: 12 }}>
+          <div><span style={{ color: C.purple }}>[package]</span></div>
+          <div><span style={{ color: C.blue }}>name</span><span style={{ color: C.muted }}> = </span><span style={{ color: "#6ee7b7" }}>"ripgrep"</span></div>
+          <div><span style={{ color: C.blue }}>version</span><span style={{ color: C.muted }}> = </span><span style={{ color: "#6ee7b7" }}>"14.1.0"</span></div>
+          <div><span style={{ color: C.blue }}>description</span><span style={{ color: C.muted }}> = </span><span style={{ color: "#6ee7b7" }}>"Fast grep replacement"</span></div>
+          <div><span style={{ color: C.blue }}>github</span><span style={{ color: C.muted }}> = </span><span style={{ color: "#6ee7b7" }}>"BurntSushi/ripgrep"</span></div>
+          <div><span style={{ color: C.blue }}>maintainer</span><span style={{ color: C.muted }}> = </span><span style={{ color: "#6ee7b7" }}>"xansidev"</span></div>
+          <div style={{ marginTop: 8 }}><span style={{ color: C.purple }}>[source]</span></div>
+          <div><span style={{ color: C.blue }}>url</span><span style={{ color: C.muted }}> = </span><span style={{ color: "#6ee7b7" }}>"https://github.com/..."</span></div>
+          <div><span style={{ color: C.blue }}>sha256</span><span style={{ color: C.muted }}> = </span><span style={{ color: "#6ee7b7" }}>"abc123..."</span></div>
+          <div style={{ marginTop: 8 }}><span style={{ color: C.purple }}>[install]</span></div>
+          <div><span style={{ color: C.blue }}>bin</span><span style={{ color: C.muted }}> = </span><span style={{ color: "#6ee7b7" }}>["rg"]</span></div>
+          <div style={{ marginTop: 8 }}><span style={{ color: C.purple }}>[remove]</span></div>
+          <div><span style={{ color: C.blue }}>bin</span><span style={{ color: C.muted }}> = </span><span style={{ color: "#6ee7b7" }}>["rg"]</span></div>
+          <div style={{ marginTop: 8 }}><span style={{ color: C.purple }}>[log]</span></div>
+          <div><span style={{ color: C.blue }}>install_log</span><span style={{ color: C.muted }}> = </span><span style={{ color: "#6ee7b7" }}>"Installed rg to /usr/local/bin"</span></div>
+          <div><span style={{ color: C.blue }}>remove_log</span><span style={{ color: C.muted }}> = </span><span style={{ color: "#6ee7b7" }}>"Removed rg"</span></div>
+        </div>
+      </>
+    ),
+  },
+  {
+    id: "contributing",
+    label: "Contributing",
+    icon: "⊕",
+    content: (
+      <>
+        <h3>Adding a package</h3>
+        <p>
+          Fork <code>Xansidev/quartz-packages</code>, create a folder with your package name, add a <code>QZMAKE</code> file,
+          and open a pull request. A maintainer will review it within a few days.
+        </p>
+        <h3>Reporting issues</h3>
+        <p>Open an issue on <code>Xansidev/qlpm</code> for client bugs, or <code>Xansidev/quartz-server</code> for registry issues.</p>
+      </>
+    ),
+  },
+];
+
 function PackageManagerPage() {
   const [langs, setLangs]       = useState<LangData[]>([]);
   const [loading, setLoading]   = useState(true);
   const [repoInfo, setRepoInfo] = useState<{ stars: number; desc: string } | null>(null);
+  const [activeTopicId, setActiveTopicId] = useState("intro");
+  const topicRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     Promise.all([
@@ -402,71 +621,115 @@ function PackageManagerPage() {
     }).catch(() => setLoading(false));
   }, []);
 
+  function scrollToTopic(id: string) {
+    setActiveTopicId(id);
+    const el = topicRefs.current[id];
+    if (el && scrollRef.current) {
+      scrollRef.current.scrollTo({ top: el.offsetTop - 16, behavior: "smooth" });
+    }
+  }
+
+  // Update active topic on scroll
+  useEffect(() => {
+    const container = scrollRef.current;
+    if (!container) return;
+    function onScroll() {
+      const containerTop = container!.scrollTop;
+      let current = TOPICS[0].id;
+      for (const topic of TOPICS) {
+        const el = topicRefs.current[topic.id];
+        if (el && el.offsetTop - 40 <= containerTop) current = topic.id;
+      }
+      setActiveTopicId(current);
+    }
+    container.addEventListener("scroll", onScroll);
+    return () => container.removeEventListener("scroll", onScroll);
+  }, []);
+
   return (
-    <div className="fade-in" style={{ display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center" }}>
-      <div style={{ position: "relative", marginBottom: 56, display: "flex", flexDirection: "column", alignItems: "center" }}>
-        <img src="/quartzlinux-colored.svg" alt="" aria-hidden
-          style={{
-            position: "absolute", width: 220, height: 220,
-            top: "50%", left: "50%",
-            transform: "translate(-50%, -50%)",
-            filter: "blur(52px)", opacity: 0.3,
-            pointerEvents: "none",
-          }}
-          onError={e => { (e.target as HTMLImageElement).style.display = "none"; }}
-        />
-        <div style={{ position: "relative", zIndex: 1 }}>
-          <div style={{ fontSize: 11, letterSpacing: "0.14em", color: C.purple, textTransform: "uppercase", marginBottom: 12 }}>
+    <div className="fade-in" style={{ display: "flex", gap: 40, maxWidth: 960, margin: "0 auto", width: "100%" }}>
+      {/* Left: intro + lang donut */}
+      <div style={{ width: 300, flexShrink: 0, display: "flex", flexDirection: "column", gap: 20 }}>
+        {/* Hero intro */}
+        <div style={{ textAlign: "center" }}>
+          <div style={{ fontSize: 11, letterSpacing: "0.14em", color: C.purple, textTransform: "uppercase", marginBottom: 8 }}>
             Xansidev / qlpm
           </div>
-          <h1 style={{ fontSize: 72, fontWeight: 800, color: C.white, letterSpacing: "-0.04em", lineHeight: 1, marginBottom: 16 }}>
+          <h1 style={{ fontSize: 48, fontWeight: 800, color: C.white, letterSpacing: "-0.04em", lineHeight: 1, marginBottom: 10 }}>
             QLPM
           </h1>
-          <p style={{ fontSize: 15, color: C.muted, maxWidth: 420, lineHeight: 1.7, margin: "0 auto 24px" }}>
+          <p style={{ fontSize: 13, color: C.muted, lineHeight: 1.7, marginBottom: 14 }}>
             The Quartz Linux Package Manager. Install, remove, search and update packages
-            defined by <code style={{ fontFamily: "JetBrains Mono", fontSize: 13, background: "#1a1a24", padding: "2px 6px", borderRadius: 4, color: C.blue }}>QZMAKE</code> files.
+            defined by <code style={{ fontFamily: "JetBrains Mono", fontSize: 12, background: "#1a1a24", padding: "2px 5px", borderRadius: 4, color: C.blue }}>QZMAKE</code> files.
           </p>
           {repoInfo && (
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, fontSize: 13, color: C.muted }}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill={C.purple} stroke="none">
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, fontSize: 12, color: C.muted, marginBottom: 16 }}>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill={C.purple} stroke="none">
                 <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
               </svg>
               <span style={{ color: C.purple, fontWeight: 600 }}>{repoInfo.stars}</span>
               <span>stars on GitHub</span>
             </div>
           )}
+          <a href={`https://github.com/${OWNER}/qlpm`} target="_blank" rel="noreferrer"
+            style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12, color: C.purple, borderBottom: `1px solid ${C.purple}40`, paddingBottom: 2 }}
+            onMouseEnter={e => (e.currentTarget.style.borderColor = C.purple)}
+            onMouseLeave={e => (e.currentTarget.style.borderColor = `${C.purple}40`)}
+          >
+            View on GitHub →
+          </a>
+        </div>
+
+        {/* Lang donut */}
+        <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 12, padding: "24px 20px" }}>
+          <div style={{ fontSize: 10, letterSpacing: "0.1em", color: C.muted, textTransform: "uppercase", marginBottom: 20, textAlign: "center" }}>Languages</div>
+          {loading
+            ? <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 10 }}><Skeleton w="200px" h={200} /><Skeleton w="160px" /></div>
+            : langs.length > 0
+              ? <LangDonut langs={langs} logoSrc="/quartzlinux-colored.svg" />
+              : <p style={{ color: C.muted, fontSize: 12, textAlign: "center" }}>Could not load language data.</p>
+          }
         </div>
       </div>
 
-      <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 16, padding: "40px 48px", marginBottom: 48, width: "100%", maxWidth: 480 }}>
-        <div style={{ fontSize: 11, letterSpacing: "0.1em", color: C.muted, textTransform: "uppercase", marginBottom: 28 }}>Languages</div>
-        {loading
-          ? <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12 }}><Skeleton w="280px" h={280} /><Skeleton w="200px" /><Skeleton w="200px" /></div>
-          : langs.length > 0
-            ? <LangDonut langs={langs} logoSrc="/quartzlinux-colored.svg" />
-            : <p style={{ color: C.muted, fontSize: 13 }}>Could not load language data.</p>
-        }
-      </div>
-
-      <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 10, padding: "20px 28px", width: "100%", maxWidth: 480, textAlign: "left" }}>
-        <div style={{ fontSize: 11, letterSpacing: "0.1em", color: C.muted, textTransform: "uppercase", marginBottom: 14 }}>Usage</div>
-        <div className="code-block" style={{ fontSize: 12 }}>
-          <div><span style={{ color: C.muted }}># install a package</span></div>
-          <div><span style={{ color: C.purple }}>qz</span> <span style={{ color: C.blue }}>-i</span> <span style={{ color: "#6ee7b7" }}>ripgrep</span></div>
-          <div style={{ marginTop: 8 }}><span style={{ color: C.muted }}># remove a package</span></div>
-          <div><span style={{ color: C.purple }}>qz</span> <span style={{ color: C.blue }}>-r</span> <span style={{ color: "#6ee7b7" }}>ripgrep</span></div>
-          <div style={{ marginTop: 8 }}><span style={{ color: C.muted }}># search packages</span></div>
-          <div><span style={{ color: C.purple }}>qz</span> <span style={{ color: C.blue }}>-s</span> <span style={{ color: "#6ee7b7" }}>neovim</span></div>
-          <div style={{ marginTop: 8 }}><span style={{ color: C.muted }}># update all</span></div>
-          <div><span style={{ color: C.purple }}>qz</span> <span style={{ color: C.blue }}>-u</span></div>
+      {/* Right: topics sidebar + infinite scroll content */}
+      <div style={{ flex: 1, display: "flex", gap: 24, minWidth: 0 }}>
+        {/* Topics nav */}
+        <div style={{ width: 150, flexShrink: 0 }}>
+          <div style={{ fontSize: 10, letterSpacing: "0.1em", color: C.muted, textTransform: "uppercase", marginBottom: 12 }}>Topics</div>
+          {TOPICS.map(t => (
+            <div key={t.id} onClick={() => scrollToTopic(t.id)}
+              style={{
+                padding: "7px 10px", borderRadius: 6, cursor: "none", fontSize: 13,
+                color: activeTopicId === t.id ? C.purple : C.muted,
+                background: activeTopicId === t.id ? "#1e1a2e" : "transparent",
+                borderLeft: `2px solid ${activeTopicId === t.id ? C.purple : "transparent"}`,
+                transition: "all 0.15s", marginBottom: 2,
+                display: "flex", alignItems: "center", gap: 7,
+              }}>
+              <span style={{ fontSize: 10, opacity: 0.7 }}>{t.icon}</span>
+              {t.label}
+            </div>
+          ))}
         </div>
-        <a href={`https://github.com/${OWNER}/qlpm`} target="_blank" rel="noreferrer"
-          style={{ display: "inline-flex", alignItems: "center", gap: 6, marginTop: 16, fontSize: 13, color: C.purple, borderBottom: `1px solid ${C.purple}40`, paddingBottom: 2, transition: "border-color 0.2s" }}
-          onMouseEnter={e => (e.currentTarget.style.borderColor = C.purple)}
-          onMouseLeave={e => (e.currentTarget.style.borderColor = `${C.purple}40`)}
-        >
-          View on GitHub →
-        </a>
+
+        {/* Infinite scroll content */}
+        <div ref={scrollRef} className="topics-scroll-wrap" style={{ flex: 1 }}>
+          {TOPICS.map(t => (
+            <div
+              key={t.id}
+              ref={el => { topicRefs.current[t.id] = el; }}
+              className="topic-section"
+            >
+              <h2>
+                <span style={{ fontSize: 14, color: C.purple, fontFamily: "JetBrains Mono" }}>{t.icon}</span>
+                {t.label}
+              </h2>
+              <div style={{ width: 24, height: 2, background: C.purple, borderRadius: 1, margin: "8px 0 16px" }} />
+              {t.content}
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );
@@ -500,7 +763,7 @@ function HomePage({ pkgCount }: { pkgCount: number }) {
   return (
     <div className="fade-in" style={{ position: "relative", display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center", minHeight: "calc(100vh - 156px)", overflow: "visible" }}>
 
-      {/* Massive logo bottom-left, blur reduced 25% (36px vs 48px before) */}
+      {/* Full-page background logo — fixed so it never clips */}
       <img src="/quartzlinux-colored.svg" alt="" aria-hidden
         style={{
           position: "fixed",
@@ -516,53 +779,54 @@ function HomePage({ pkgCount }: { pkgCount: number }) {
       />
 
       {/* Hero text */}
-      <div style={{ position: "relative", zIndex: 1, marginBottom: 48, display: "flex", flexDirection: "column", alignItems: "center" }}>
+      <div style={{ position: "relative", zIndex: 2, marginBottom: 36, display: "flex", flexDirection: "column", alignItems: "center" }}>
         <h1 style={{
           fontSize: 64, fontWeight: 800, color: C.white,
           letterSpacing: "-0.04em", lineHeight: 1, marginBottom: 20,
         }}>
           Quartz Linux
         </h1>
-        <p style={{ fontSize: 16, color: C.muted, lineHeight: 1.7, maxWidth: 480, margin: "0 auto" }}>
+        <p style={{ fontSize: 16, color: C.muted, lineHeight: 1.7, maxWidth: 480, margin: "0 auto 28px" }}>
           A dev-oriented package manager for Linux. Fast, and human-readable.
           Every package is defined by a{" "}
           <code style={{ fontFamily: "JetBrains Mono", fontSize: 13, background: "#1a1a24", padding: "2px 6px", borderRadius: 4, color: C.orange }}>TOML</code>
           {" "}file that tells Quartz how packages work declaratively.
         </p>
+
+        {/* CTA Buttons */}
+        <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+          <button className="hero-btn hero-btn-yellow">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+              <polyline points="7 10 12 15 17 10"/>
+              <line x1="12" y1="15" x2="12" y2="3"/>
+            </svg>
+            Download ISO
+          </button>
+          <a
+            href={`https://github.com/${OWNER}`}
+            target="_blank"
+            rel="noreferrer"
+            className="hero-btn hero-btn-ghost"
+            style={{ display: "inline-flex", alignItems: "center", gap: 8 }}
+          >
+            {/* GitHub SVG icon — inline white SVG, no download needed */}
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="white" xmlns="http://www.w3.org/2000/svg">
+              <path d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0 1 12 6.844a9.59 9.59 0 0 1 2.504.337c1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0 0 22 12.017C22 6.484 17.522 2 12 2z"/>
+            </svg>
+            GitHub
+          </a>
+        </div>
       </div>
 
       {/* Stats */}
-      <div style={{ position: "relative", zIndex: 1, display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 14, width: "100%", maxWidth: 560 }}>
+      <div style={{ position: "relative", zIndex: 2, display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 14, width: "100%", maxWidth: 560 }}>
         {stats.map(({ label, value }) => (
           <div key={label} className="stat-card">
             <div style={{ fontSize: 32, fontWeight: 700, color: C.white, fontFamily: "JetBrains Mono", marginBottom: 6 }}>{value}</div>
             <div style={{ fontSize: 12, color: C.muted, letterSpacing: "0.04em" }}>{label}</div>
           </div>
         ))}
-      </div>
-
-      {/* Footer credit — fixed bottom-right, only visible on home */}
-      <div style={{
-        position: "fixed", bottom: 22, right: 28,
-        fontSize: 11, color: C.muted,
-        display: "flex", alignItems: "center", gap: 5,
-        zIndex: 20, letterSpacing: "0.02em",
-      }}>
-        website designer{" "}
-        <a
-          href={`https://github.com/${OWNER}`}
-          target="_blank" rel="noreferrer"
-          style={{
-            color: C.purple, fontWeight: 600,
-            borderBottom: `1px solid ${C.purple}40`,
-            paddingBottom: 1,
-            transition: "border-color 0.2s",
-          }}
-          onMouseEnter={e => (e.currentTarget.style.borderColor = C.purple)}
-          onMouseLeave={e => (e.currentTarget.style.borderColor = `${C.purple}40`)}
-        >
-          @{OWNER}
-        </a>
       </div>
     </div>
   );
@@ -656,68 +920,14 @@ function PackagesPage() {
   );
 }
 
-function DocsPage() {
-  const [active, setActive] = useState("installing");
-  const docs: Record<string, { title: string; content: React.ReactNode }> = {
-    installing: {
-      title: "Installing & Removing Packages",
-      content: (<>
-        <h3>Installing a package</h3>
-        <p>Use <code>qz -i</code> followed by the package name. Quartz will fetch the QZMAKE file, show you the install plan, and ask for confirmation.</p>
-        <div className="code-block" style={{ marginBottom: 16, fontSize: 12 }}>
-          <div><span style={{ color: C.purple }}>qz</span> <span style={{ color: C.blue }}>-i</span> <span style={{ color: "#6ee7b7" }}>ripgrep</span></div>
-        </div>
-        <h3>Removing a package</h3>
-        <p>Use <code>qz -r</code> to remove. Quartz reads the <code>[remove]</code> section of the QZMAKE and deletes only the files it placed.</p>
-        <div className="code-block" style={{ fontSize: 12 }}>
-          <div><span style={{ color: C.purple }}>qz</span> <span style={{ color: C.blue }}>-r</span> <span style={{ color: "#6ee7b7" }}>ripgrep</span></div>
-        </div>
-      </>)
-    },
-    updating: {
-      title: "Updating Packages",
-      content: (<>
-        <h3>Update a single package</h3>
-        <p>Quartz checks the registry for a newer version and reinstalls if one exists.</p>
-        <div className="code-block" style={{ marginBottom: 16, fontSize: 12 }}>
-          <div><span style={{ color: C.purple }}>qz</span> <span style={{ color: C.blue }}>-u</span> <span style={{ color: "#6ee7b7" }}>ripgrep</span></div>
-        </div>
-        <h3>Update everything</h3>
-        <p>Running without a package name updates all installed packages.</p>
-        <div className="code-block" style={{ fontSize: 12 }}>
-          <div><span style={{ color: C.purple }}>qz</span> <span style={{ color: C.blue }}>-u</span></div>
-        </div>
-      </>)
-    },
-    contributing: {
-      title: "Contributing",
-      content: (<>
-        <h3>Adding a package</h3>
-        <p>Fork <code>Xansidev/quartz-packages</code>, create a folder with your package name, and add a <code>QZMAKE</code> file. Open a pull request and a maintainer will review it.</p>
-        <h3>QZMAKE format</h3>
-        <p>Every QZMAKE file is a TOML file with five required sections: <code>[package]</code>, <code>[source]</code>, <code>[install]</code>, <code>[remove]</code>, and <code>[log]</code>.</p>
-        <h3>Reporting issues</h3>
-        <p>Open an issue on <code>Xansidev/qlpm</code> for client bugs, or <code>Xansidev/quartz-server</code> for registry issues.</p>
-      </>)
-    }
-  };
-
+// ── Installation page (empty, for you, YES FKN YOU XANSI, to fill :3) ───────────
+function InstallationPage() {
   return (
-    <div style={{ display: "flex", gap: 32, maxWidth: 820, margin: "0 auto", width: "100%" }}>
-      <div style={{ width: 180, flexShrink: 0 }}>
-        <div style={{ fontSize: 10, letterSpacing: "0.1em", color: C.muted, textTransform: "uppercase", marginBottom: 12 }}>Topics</div>
-        {Object.entries(docs).map(([key, { title }]) => (
-          <div key={key} onClick={() => setActive(key)}
-            style={{ padding: "8px 12px", borderRadius: 6, cursor: "none", fontSize: 13, color: active === key ? C.purple : C.muted, background: active === key ? "#1e1a2e" : "transparent", borderLeft: `2px solid ${active === key ? C.purple : "transparent"}`, transition: "all 0.15s", marginBottom: 2 }}>
-            {title}
-          </div>
-        ))}
-      </div>
-      <div className="doc-section fade-in" key={active} style={{ flex: 1, maxWidth: 600 }}>
-        <h2>{docs[active].title}</h2>
-        <div style={{ width: 32, height: 2, background: C.purple, borderRadius: 1, margin: "12px 0 20px" }} />
-        {docs[active].content}
-      </div>
+    <div className="fade-in" style={{ maxWidth: 720, margin: "0 auto", width: "100%" }}>
+      <div style={{ fontSize: 11, letterSpacing: "0.12em", color: C.purple, textTransform: "uppercase", marginBottom: 8 }}>Quartz Linux</div>
+      <h2 style={{ fontSize: 22, fontWeight: 700, color: C.white, marginBottom: 8 }}>Installation</h2>
+      <div style={{ width: 32, height: 2, background: C.purple, borderRadius: 1, marginBottom: 24 }} />
+      <p style={{ fontSize: 14, color: C.muted }}>Coming soon (1.3B~ Years).</p>
     </div>
   );
 }
@@ -732,53 +942,34 @@ function ContribPage() {
 
       await Promise.all(
         REPOS.map(async (name) => {
-          // Fetch both contributors endpoint AND raw commits
           const [contribData, commitData] = await Promise.all([
-            ghFetch(`/repos/${OWNER}/${name}/contributors?per_page=100&anon=1`)
-              .catch(() => []),
-            ghFetch(`/repos/${OWNER}/${name}/commits?per_page=100`)
-              .catch(() => []),
+            ghFetch(`/repos/${OWNER}/${name}/contributors?per_page=100&anon=1`).catch(() => []),
+            ghFetch(`/repos/${OWNER}/${name}/commits?per_page=100`).catch(() => []),
           ]);
 
-          // From contributors endpoint
           if (Array.isArray(contribData)) {
             contribData.forEach((c: any) => {
-              if (!c.login) return; // skip anon
+              if (!c.login) return;
               if (merged[c.login]) merged[c.login].contributions += c.contributions;
-              else merged[c.login] = {
-                login: c.login,
-                avatar: c.avatar_url,
-                contributions: c.contributions,
-                url: c.html_url,
-              };
+              else merged[c.login] = { login: c.login, avatar: c.avatar_url, contributions: c.contributions, url: c.html_url };
             });
           }
 
-          // From commits, catches people the contributors endpoint missed
           if (Array.isArray(commitData)) {
             commitData.forEach((c: any) => {
               const login = c.author?.login;
               if (!login) return;
               if (!merged[login]) {
-                merged[login] = {
-                  login,
-                  avatar: c.author.avatar_url,
-                  contributions: 1,
-                  url: c.author.html_url,
-                };
+                merged[login] = { login, avatar: c.author.avatar_url, contributions: 1, url: c.author.html_url };
               }
-              // Don't double-count if contributors API already caught them
             });
           }
         })
       );
 
-      setContribs(
-        Object.values(merged).sort((a, b) => b.contributions - a.contributions)
-      );
+      setContribs(Object.values(merged).sort((a, b) => b.contributions - a.contributions));
       setLoading(false);
     }
-
     load();
   }, []);
 
@@ -807,8 +998,46 @@ function ContribPage() {
   );
 }
 
+// ── Footer bar ────────────────────────────────────────────
+function FooterBar() {
+  return (
+    <div className="footer-bar">
+      {/* Left: React logo + label */}
+      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        <img
+          src="/react.svg"
+          alt="React"
+          style={{ width: 18, height: 18, opacity: 0.7 }}
+          onError={e => { (e.target as HTMLImageElement).style.display = "none"; }}
+        />
+        <span style={{ fontSize: 11, color: C.muted }}>Built with React</span>
+      </div>
+
+      {/* Right: designer credit */}
+      <div style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11, color: C.muted }}>
+        website designer{" "}
+        <a
+          href={`https://github.com/${OWNER}`}
+          target="_blank"
+          rel="noreferrer"
+          style={{
+            color: C.purple, fontWeight: 600,
+            borderBottom: `1px solid ${C.purple}40`,
+            paddingBottom: 1,
+            transition: "border-color 0.2s",
+          }}
+          onMouseEnter={e => (e.currentTarget.style.borderColor = C.purple)}
+          onMouseLeave={e => (e.currentTarget.style.borderColor = `${C.purple}40`)}
+        >
+          @{OWNER}
+        </a>
+      </div>
+    </div>
+  );
+}
+
 export default function App() {
-  const [page, setPage]         = useState<"home" | "packages" | "docs" | "contrib" | "pkgmgr">("home");
+  const [page, setPage]         = useState<"home" | "packages" | "pkgmgr" | "installation" | "contrib">("home");
   const [pkgCount, setPkgCount] = useState(0);
 
   useEffect(() => {
@@ -819,11 +1048,11 @@ export default function App() {
   }, []);
 
   const navItems: { key: typeof page; label: string }[] = [
-    { key: "home",     label: "Home" },
-    { key: "packages", label: "Packages" },
-    { key: "pkgmgr",  label: "Package Manager" },
-    { key: "docs",     label: "Docs" },
-    { key: "contrib",  label: "Contributors" },
+    { key: "home",         label: "Home" },
+    { key: "packages",     label: "Packages" },
+    { key: "pkgmgr",       label: "Package Manager" },
+    { key: "installation", label: "Installation" },
+    { key: "contrib",      label: "Contributors" },
   ];
 
   return (
@@ -852,13 +1081,16 @@ export default function App() {
         </nav>
       </header>
 
-      <main style={{ paddingTop: 96, paddingLeft: 40, paddingRight: 40, paddingBottom: 60, maxWidth: 1100, margin: "0 auto" }}>
-        {page === "home"     && <HomePage pkgCount={pkgCount} />}
-        {page === "packages" && <PackagesPage />}
-        {page === "pkgmgr"  && <PackageManagerPage />}
-        {page === "docs"     && <DocsPage />}
-        {page === "contrib"  && <ContribPage />}
+      {/* Extra bottom padding so footer bar doesn't overlap content */}
+      <main style={{ paddingTop: 96, paddingLeft: 40, paddingRight: 40, paddingBottom: 80, maxWidth: 1100, margin: "0 auto" }}>
+        {page === "home"         && <HomePage pkgCount={pkgCount} />}
+        {page === "packages"     && <PackagesPage />}
+        {page === "pkgmgr"       && <PackageManagerPage />}
+        {page === "installation" && <InstallationPage />}
+        {page === "contrib"      && <ContribPage />}
       </main>
+
+      <FooterBar />
     </>
   );
 }
