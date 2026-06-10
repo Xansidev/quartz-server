@@ -272,8 +272,8 @@ function HomePage({ pkgCount }: { pkgCount: number }) {
           Quartz Linux
         </h1>
         <p style={{ fontSize: 15, color: C.muted, lineHeight: 1.7 }}>
-          A dev-oriented package manager for Linux. Fast, source-first, and human-readable.
-          Every package is defined by a <code style={{ fontFamily: "JetBrains Mono", fontSize: 13, background: "#1a1a24", padding: "2px 6px", borderRadius: 4, color: C.blue }}>QZMAKE</code> file — a simple TOML manifest that tells Quartz exactly where everything goes.
+          A dev-oriented package manager for Linux. Fast, and human-readable.
+          Every package is defined by a <code style={{ fontFamily: "JetBrains Mono", fontSize: 13, background: "#1a1a24", padding: "2px 6px", borderRadius: 4, color: C.blue }}>QZMAKE</code> file, a simple TOML that tells Quartz (QLPM) exactly where everything goes.
         </p>
       </div>
 
