@@ -7,7 +7,7 @@ const C = {
   surface: "#13131a",
   border:  "#1e1e2a",
   text:    "#e8e8f0",
-  muted:   "#5a5a72",
+  muted:   "#9898b0",
   purple:  "#a78bfa",
   blue:    "#4FC3F7",
   white:   "#ffffff",
@@ -103,11 +103,12 @@ const globalCSS = `
     width: 260px; height: 260px;
     border-radius: 50%;
     pointer-events: none;
-    z-index: 1;
+    z-index: 2;
     transform: translate(-50%, -50%);
-    background: radial-gradient(circle, rgba(167,139,250,0.18) 0%, rgba(167,139,250,0.07) 40%, transparent 70%);
-    filter: blur(18px);
+    background: radial-gradient(circle, rgba(167,139,250,0.12) 0%, rgba(167,139,250,0.04) 40%, transparent 70%);
+    filter: blur(22px);
     animation: cursorPulse 3s ease-in-out infinite;
+    mix-blend-mode: screen;
   }
 
   .pkg-card {
@@ -170,7 +171,7 @@ const globalCSS = `
   .doc-section { animation: fadeIn 0.3s ease both; }
   .doc-section h2 { font-size: 20px; font-weight: 600; color: ${C.white}; margin-bottom: 8px; }
   .doc-section h3 { font-size: 14px; font-weight: 500; color: ${C.purple}; margin: 24px 0 8px; text-transform: uppercase; letter-spacing: 0.08em; }
-  .doc-section p  { font-size: 14px; color: ${C.muted}; line-height: 1.7; margin-bottom: 12px; }
+  .doc-section p  { font-size: 14px; color: #b8b8cc; line-height: 1.7; margin-bottom: 12px; }
   .doc-section code { font-family: 'JetBrains Mono', monospace; font-size: 12px; background: #1a1a24; padding: 2px 6px; border-radius: 4px; color: ${C.blue}; }
 
   .contrib-card {
@@ -214,6 +215,8 @@ const globalCSS = `
     border-radius: 10px;
     padding: 20px 24px;
     transition: border-color 0.2s, transform 0.2s;
+    position: relative;
+    z-index: 5;
   }
   .stat-card:hover { border-color: ${C.purple}40; transform: translateY(-2px); }
 
@@ -267,7 +270,7 @@ const globalCSS = `
     font-size: 12px; font-weight: 500; color: ${C.purple};
     margin: 24px 0 10px; text-transform: uppercase; letter-spacing: 0.08em;
   }
-  .topic-section p { font-size: 14.5px; color: ${C.muted}; line-height: 1.8; margin-bottom: 14px; }
+  .topic-section p { font-size: 14.5px; color: #b8b8cc; line-height: 1.8; margin-bottom: 14px; }
   .topic-section code {
     font-family: 'JetBrains Mono', monospace; font-size: 12px;
     background: #1a1a24; padding: 2px 6px; border-radius: 4px; color: ${C.blue};
@@ -699,13 +702,12 @@ function PackageManagerPage() {
           </a>
         </div>
 
-        {/* Lang donut — unchanged */}
-        <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 12, padding: "24px 20px" }}>
-          <div style={{ fontSize: 10, letterSpacing: "0.1em", color: C.muted, textTransform: "uppercase", marginBottom: 20, textAlign: "center" }}>Languages</div>
+        {/* Lang donut — no box */}
+        <div style={{ padding: "8px 0" }}>
           {loading
             ? <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 10 }}><Skeleton w="200px" h={200} /><Skeleton w="160px" /></div>
             : langs.length > 0
-              ? <LangDonut langs={langs} logoSrc="/quartzlinux-colored.svg" />
+              ? <LangDonut langs={langs} logoSrc="/quartzlinux.svg" />
               : <p style={{ color: C.muted, fontSize: 12, textAlign: "center" }}>Could not load language data.</p>
           }
         </div>
@@ -772,6 +774,118 @@ function PackageManagerPage() {
   );
 }
 
+// Inline B&W SVGs for tech logos
+const VITE_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 410 404"><path fill="white" d="M399.641 59.525l-183.998 329.02c-3.792 6.783-13.559 6.823-17.409.075L10.582 59.6C6.38 52.295 12.53 43.507 20.836 44.717L204.25 71.081c1.24.183 2.499.184 3.74.003L389.798 44.74c8.291-1.222 14.458 7.537 9.843 14.785z"/><path fill="#aaaaaa" d="M292.965 1.428L156.801 27.593c-3.609.679-6.209 3.822-6.209 7.491v157.371c0 4.141 3.354 7.497 7.495 7.497h35.907c4.179 0 7.55-3.407 7.495-7.585l-1.572-124.58c-.058-4.24 3.42-7.691 7.659-7.608l36.317.705c4.205.082 7.587 3.498 7.587 7.704v124.759c0 4.141 3.354 7.497 7.495 7.497h35.658c4.141 0 7.495-3.356 7.495-7.497V9.016c0-4.577-4.131-8.05-8.663-7.588z"/></svg>`;
+
+const REACT_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-11.5 -10.23 23 20.46"><circle cx="0" cy="0" r="2.05" fill="white"/><g stroke="white" stroke-width="1" fill="none"><ellipse rx="11" ry="4.2"/><ellipse rx="11" ry="4.2" transform="rotate(60)"/><ellipse rx="11" ry="4.2" transform="rotate(120)"/></g></svg>`;
+
+const TS_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><rect width="512" height="512" rx="50" fill="white"/><path fill="#0a0a0f" d="M317 407v52c9 4 19 7 30 9s23 3 35 3c11 0 22-1 32-3s20-6 27-11 13-12 18-21 7-19 7-32c0-9-1-17-4-24s-6-13-11-18-10-10-17-14-14-8-22-12c-6-3-11-5-16-8s-9-5-12-7-5-5-7-7-2-5-2-9c0-3 1-6 2-8s4-4 6-6 6-3 9-4 7-1 11-1c3 0 6 0 10 1s7 1 11 2 7 2 10 4 6 3 9 5v-48c-9-3-18-5-27-6s-19-2-30-2c-11 0-22 1-31 3s-19 6-26 11-13 12-17 20-6 19-6 32c0 16 4 29 13 39s21 19 37 26c6 3 12 5 17 8s10 5 13 8 6 5 7 8 2 7 2 11c0 3 0 6-2 9s-3 5-6 7-6 3-10 4-8 2-13 2c-9 0-18-2-27-5s-18-8-25-14zm-121-6h-62V197h-60v-47h182v47h-60z"/></svg>`;
+
+const GITHUB_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill="white" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0 1 12 6.844a9.59 9.59 0 0 1 2.504.337c1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0 0 22 12.017C22 6.484 17.522 2 12 2z"/></svg>`;
+
+const ORBIT_ITEMS = [
+  { svg: VITE_SVG,  label: "Vite",       href: "https://vitejs.dev",            size: 36 },
+  { svg: REACT_SVG, label: "React",      href: "https://react.dev",             size: 34 },
+  { svg: TS_SVG,    label: "TypeScript", href: "https://www.typescriptlang.org", size: 34 },
+];
+
+const ORBIT_DURATION = 9; // seconds for one full revolution (normal speed)
+const ORBIT_HOVER_DURATION = 22; // slows on hover
+
+function OrbitRing({ pkgCount }: { pkgCount: number }) {
+  const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
+  const [paused, setPaused]         = useState(false);
+  const [angle, setAngle]           = useState(0);
+  const rafRef  = useRef<number>(0);
+  const lastRef = useRef<number>(0);
+  const RADIUS  = 110;
+  const N       = ORBIT_ITEMS.length;
+
+  useEffect(() => {
+    function tick(ts: number) {
+      if (lastRef.current) {
+        const dt = ts - lastRef.current;
+        const speed = paused ? 0 : (hoveredIdx !== null ? 360 / (ORBIT_HOVER_DURATION * 1000) : 360 / (ORBIT_DURATION * 1000));
+        setAngle(a => (a + speed * dt) % 360);
+      }
+      lastRef.current = ts;
+      rafRef.current = requestAnimationFrame(tick);
+    }
+    rafRef.current = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(rafRef.current);
+  }, [hoveredIdx, paused]);
+
+  return (
+    <div style={{ position: "relative", width: RADIUS * 2 + 80, height: RADIUS * 2 + 80, flexShrink: 0 }}>
+      {/* Orbit ring visual */}
+      <div style={{
+        position: "absolute",
+        inset: 40,
+        borderRadius: "50%",
+        border: `1px solid rgba(167,139,250,0.12)`,
+        pointerEvents: "none",
+      }} />
+      {/* Center: GitHub logo — clickable */}
+      <a
+        href={`https://github.com/${OWNER}/quartz-server`}
+        target="_blank"
+        rel="noreferrer"
+        title="GitHub"
+        style={{
+          position: "absolute",
+          left: "50%", top: "50%",
+          transform: "translate(-50%,-50%)",
+          width: 56, height: 56,
+          display: "flex", alignItems: "center", justifyContent: "center",
+          opacity: 0.7,
+          transition: "opacity 0.2s, filter 0.2s",
+          zIndex: 10,
+        }}
+        onMouseEnter={e => { e.currentTarget.style.opacity = "1"; e.currentTarget.style.filter = "drop-shadow(0 0 10px rgba(167,139,250,0.7))"; }}
+        onMouseLeave={e => { e.currentTarget.style.opacity = "0.7"; e.currentTarget.style.filter = "none"; }}
+        dangerouslySetInnerHTML={{ __html: GITHUB_SVG }}
+      />
+      {/* Orbiting icons */}
+      {ORBIT_ITEMS.map((item, i) => {
+        const theta = ((angle + i * (360 / N)) * Math.PI) / 180;
+        const cx = RADIUS * Math.cos(theta) + RADIUS + 40;
+        const cy = RADIUS * Math.sin(theta) + RADIUS + 40;
+        const isHovered = hoveredIdx === i;
+        return (
+          <a
+            key={item.label}
+            href={item.href}
+            target="_blank"
+            rel="noreferrer"
+            title={item.label}
+            onMouseEnter={() => setHoveredIdx(i)}
+            onMouseLeave={() => setHoveredIdx(null)}
+            style={{
+              position: "absolute",
+              left: cx,
+              top: cy,
+              width: item.size + 16,
+              height: item.size + 16,
+              transform: `translate(-50%, -50%) scale(${isHovered ? 1.22 : 1})`,
+              transition: "transform 0.25s ease",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              opacity: isHovered ? 1 : 0.7,
+              filter: isHovered ? "drop-shadow(0 0 8px rgba(167,139,250,0.6))" : "none",
+              zIndex: 10,
+            }}
+          >
+            <div style={{ width: item.size, height: item.size }}
+              dangerouslySetInnerHTML={{ __html: item.svg }}
+            />
+          </a>
+        );
+      })}
+    </div>
+  );
+}
+
 // ── Home page ─────────────────────────────────────────────
 function HomePage({ pkgCount }: { pkgCount: number }) {
   const [stars, setStars]                 = useState<number | null>(null);
@@ -816,14 +930,14 @@ function HomePage({ pkgCount }: { pkgCount: number }) {
       />
 
       {/* Hero text */}
-      <div style={{ position: "relative", zIndex: 2, marginBottom: 36, display: "flex", flexDirection: "column", alignItems: "center" }}>
+      <div style={{ position: "relative", zIndex: 3, marginBottom: 36, display: "flex", flexDirection: "column", alignItems: "center" }}>
         <h1 style={{
           fontSize: 64, fontWeight: 800, color: C.white,
           letterSpacing: "-0.04em", lineHeight: 1, marginBottom: 20,
         }}>
           Quartz Linux
         </h1>
-        <p style={{ fontSize: 16, color: C.muted, lineHeight: 1.7, maxWidth: 480, margin: "0 auto 28px" }}>
+        <p style={{ fontSize: 16, color: "#b8b8cc", lineHeight: 1.7, maxWidth: 480, margin: "0 auto 28px" }}>
           A dev-oriented package manager for Linux. Fast, and human-readable.
           Every package is defined by a{" "}
           <code style={{ fontFamily: "JetBrains Mono", fontSize: 13, background: "#1a1a24", padding: "2px 6px", borderRadius: 4, color: C.orange }}>TOML</code>
@@ -855,14 +969,17 @@ function HomePage({ pkgCount }: { pkgCount: number }) {
         </div>
       </div>
 
-      {/* Stats */}
-      <div style={{ position: "relative", zIndex: 2, display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 14, width: "100%", maxWidth: 560 }}>
-        {stats.map(({ label, value }) => (
-          <div key={label} className="stat-card">
-            <div style={{ fontSize: 32, fontWeight: 700, color: C.white, fontFamily: "JetBrains Mono", marginBottom: 6 }}>{value}</div>
-            <div style={{ fontSize: 12, color: C.muted, letterSpacing: "0.04em" }}>{label}</div>
-          </div>
-        ))}
+      {/* Orbit ring + stats side by side */}
+      <div style={{ position: "relative", zIndex: 3, display: "flex", alignItems: "center", gap: 48, marginBottom: 8 }}>
+        <OrbitRing pkgCount={pkgCount} />
+        <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 14, width: 200 }}>
+          {stats.map(({ label, value }) => (
+            <div key={label} className="stat-card" style={{ textAlign: "left" }}>
+              <div style={{ fontSize: 28, fontWeight: 700, color: C.white, fontFamily: "JetBrains Mono", marginBottom: 4 }}>{value}</div>
+              <div style={{ fontSize: 12, color: C.muted, letterSpacing: "0.04em" }}>{label}</div>
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );
@@ -901,7 +1018,7 @@ function PackagesPage() {
   const activeList = pkgTab === "core" ? coreList : extraList;
 
   const displayList = query.trim()
-    ? list.filter(p => p.name.toLowerCase().includes(query.toLowerCase()))
+    ? activeList.filter(p => p.name.toLowerCase().includes(query.toLowerCase()))
     : activeList;
 
   useEffect(() => {
