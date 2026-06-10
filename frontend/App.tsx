@@ -31,7 +31,6 @@ async function ghFetch(path: string) {
   return r.json();
 }
 
-// GitHub language colours (common ones)
 const LANG_COLORS: Record<string, string> = {
   Rust:         "#dea584",
   Python:       "#3572A5",
@@ -87,7 +86,6 @@ const globalCSS = `
   .fade-in  { animation: fadeIn  0.35s ease both; }
   .slide-in { animation: slideIn 0.25s ease both; }
 
-  /* Custom cursor */
   #cursor-dot {
     position: fixed;
     width: 8px; height: 8px;
@@ -109,7 +107,6 @@ const globalCSS = `
     background: radial-gradient(circle, rgba(167,139,250,0.18) 0%, rgba(167,139,250,0.07) 40%, transparent 70%);
     filter: blur(18px);
     animation: cursorPulse 3s ease-in-out infinite;
-    transition: left 0.12s ease-out, top 0.12s ease-out;
   }
 
   .pkg-card {
@@ -207,7 +204,6 @@ const globalCSS = `
   * { cursor: none !important; }
 `;
 
-// ── Custom cursor ─────────────────────────────────────────
 function Cursor() {
   const dotRef  = useRef<HTMLDivElement>(null);
   const glowRef = useRef<HTMLDivElement>(null);
@@ -252,7 +248,6 @@ function Skeleton({ w = "100%", h = 14 }: { w?: string; h?: number }) {
   return <div className="skeleton" style={{ width: w, height: h, marginBottom: 8 }} />;
 }
 
-// ── QZMAKE renderer ───────────────────────────────────────
 function QZSection({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div style={{ marginBottom: 4 }}>
@@ -303,7 +298,6 @@ function QZMAKEView({ pkg }: { pkg: PackageDetail }) {
   );
 }
 
-// ── Commit badge ──────────────────────────────────────────
 function CommitBadge({ commit }: { commit: CommitInfo }) {
   return (
     <a href={commit.url} target="_blank" rel="noreferrer"
@@ -335,7 +329,6 @@ function CommitBadge({ commit }: { commit: CommitInfo }) {
   );
 }
 
-// ── Language donut ────────────────────────────────────────
 function LangDonut({ langs, logoSrc }: { langs: LangData[]; logoSrc: string }) {
   const SIZE   = 280;
   const STROKE = 28;
@@ -344,7 +337,6 @@ function LangDonut({ langs, logoSrc }: { langs: LangData[]; logoSrc: string }) {
   const CX     = SIZE / 2;
   const total  = langs.reduce((s, l) => s + l.bytes, 0);
 
-  // Build arc segments
   let offset = 0;
   const segments = langs.map(l => {
     const frac = l.bytes / total;
@@ -354,17 +346,11 @@ function LangDonut({ langs, logoSrc }: { langs: LangData[]; logoSrc: string }) {
     return seg;
   });
 
-  // Label positions (outside the ring)
-  const LABEL_R = R + STROKE / 2 + 22;
-
   return (
     <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 32 }}>
       <div style={{ position: "relative", width: SIZE, height: SIZE }}>
         <svg width={SIZE} height={SIZE} style={{ transform: "rotate(-90deg)" }}>
-          {/* Background ring */}
-          <circle cx={CX} cy={CX} r={R}
-            fill="none" stroke={C.border} strokeWidth={STROKE} />
-          {/* Language arcs */}
+          <circle cx={CX} cy={CX} r={R} fill="none" stroke={C.border} strokeWidth={STROKE} />
           {segments.map((s, i) => (
             <circle key={i} cx={CX} cy={CX} r={R}
               fill="none"
@@ -377,37 +363,19 @@ function LangDonut({ langs, logoSrc }: { langs: LangData[]; logoSrc: string }) {
             />
           ))}
         </svg>
-
-        {/* Center logo */}
-        <div style={{
-          position: "absolute", inset: 0,
-          display: "flex", alignItems: "center", justifyContent: "center",
-        }}>
+        <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
           <img src={logoSrc} alt="QLPM"
             style={{ width: 72, height: 72, filter: "drop-shadow(0 0 12px rgba(167,139,250,0.4))" }}
             onError={e => { (e.target as HTMLImageElement).style.display = "none"; }}
           />
         </div>
       </div>
-
-      {/* Legend */}
-      <div style={{
-        display: "grid",
-        gridTemplateColumns: "1fr 1fr",
-        gap: "10px 28px",
-        maxWidth: 340,
-        width: "100%",
-      }}>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px 28px", maxWidth: 340, width: "100%" }}>
         {segments.map(s => (
           <div key={s.name} style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <div style={{
-              width: 10, height: 10, borderRadius: "50%",
-              background: langColor(s.name), flexShrink: 0,
-            }} />
+            <div style={{ width: 10, height: 10, borderRadius: "50%", background: langColor(s.name), flexShrink: 0 }} />
             <span style={{ fontSize: 13, color: C.text, fontFamily: "JetBrains Mono" }}>{s.name}</span>
-            <span style={{ fontSize: 12, color: C.muted, marginLeft: "auto" }}>
-              {(s.frac * 100).toFixed(1)}%
-            </span>
+            <span style={{ fontSize: 12, color: C.muted, marginLeft: "auto" }}>{(s.frac * 100).toFixed(1)}%</span>
           </div>
         ))}
       </div>
@@ -415,10 +383,9 @@ function LangDonut({ langs, logoSrc }: { langs: LangData[]; logoSrc: string }) {
   );
 }
 
-// ── Package Manager page ──────────────────────────────────
 function PackageManagerPage() {
-  const [langs, setLangs]     = useState<LangData[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [langs, setLangs]       = useState<LangData[]>([]);
+  const [loading, setLoading]   = useState(true);
   const [repoInfo, setRepoInfo] = useState<{ stars: number; desc: string } | null>(null);
 
   useEffect(() => {
@@ -437,9 +404,7 @@ function PackageManagerPage() {
 
   return (
     <div className="fade-in" style={{ display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center" }}>
-      {/* Hero */}
       <div style={{ position: "relative", marginBottom: 56, display: "flex", flexDirection: "column", alignItems: "center" }}>
-        {/* blurred logo backdrop */}
         <img src="/quartzlinux-colored.svg" alt="" aria-hidden
           style={{
             position: "absolute", width: 220, height: 220,
@@ -454,10 +419,7 @@ function PackageManagerPage() {
           <div style={{ fontSize: 11, letterSpacing: "0.14em", color: C.purple, textTransform: "uppercase", marginBottom: 12 }}>
             Xansidev / qlpm
           </div>
-          <h1 style={{
-            fontSize: 72, fontWeight: 800, color: C.white,
-            letterSpacing: "-0.04em", lineHeight: 1, marginBottom: 16,
-          }}>
+          <h1 style={{ fontSize: 72, fontWeight: 800, color: C.white, letterSpacing: "-0.04em", lineHeight: 1, marginBottom: 16 }}>
             QLPM
           </h1>
           <p style={{ fontSize: 15, color: C.muted, maxWidth: 420, lineHeight: 1.7, margin: "0 auto 24px" }}>
@@ -476,38 +438,18 @@ function PackageManagerPage() {
         </div>
       </div>
 
-      {/* Donut chart */}
-      <div style={{
-        background: C.surface, border: `1px solid ${C.border}`,
-        borderRadius: 16, padding: "40px 48px",
-        marginBottom: 48, width: "100%", maxWidth: 480,
-      }}>
-        <div style={{ fontSize: 11, letterSpacing: "0.1em", color: C.muted, textTransform: "uppercase", marginBottom: 28 }}>
-          Languages
-        </div>
+      <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 16, padding: "40px 48px", marginBottom: 48, width: "100%", maxWidth: 480 }}>
+        <div style={{ fontSize: 11, letterSpacing: "0.1em", color: C.muted, textTransform: "uppercase", marginBottom: 28 }}>Languages</div>
         {loading
-          ? (
-            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12 }}>
-              <Skeleton w="280px" h={280} />
-              <Skeleton w="200px" />
-              <Skeleton w="200px" />
-            </div>
-          )
+          ? <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12 }}><Skeleton w="280px" h={280} /><Skeleton w="200px" /><Skeleton w="200px" /></div>
           : langs.length > 0
             ? <LangDonut langs={langs} logoSrc="/quartzlinux-colored.svg" />
             : <p style={{ color: C.muted, fontSize: 13 }}>Could not load language data.</p>
         }
       </div>
 
-      {/* Usage */}
-      <div style={{
-        background: C.surface, border: `1px solid ${C.border}`,
-        borderRadius: 10, padding: "20px 28px",
-        width: "100%", maxWidth: 480, textAlign: "left",
-      }}>
-        <div style={{ fontSize: 11, letterSpacing: "0.1em", color: C.muted, textTransform: "uppercase", marginBottom: 14 }}>
-          Usage
-        </div>
+      <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 10, padding: "20px 28px", width: "100%", maxWidth: 480, textAlign: "left" }}>
+        <div style={{ fontSize: 11, letterSpacing: "0.1em", color: C.muted, textTransform: "uppercase", marginBottom: 14 }}>Usage</div>
         <div className="code-block" style={{ fontSize: 12 }}>
           <div><span style={{ color: C.muted }}># install a package</span></div>
           <div><span style={{ color: C.purple }}>qz</span> <span style={{ color: C.blue }}>-i</span> <span style={{ color: "#6ee7b7" }}>ripgrep</span></div>
@@ -518,15 +460,8 @@ function PackageManagerPage() {
           <div style={{ marginTop: 8 }}><span style={{ color: C.muted }}># update all</span></div>
           <div><span style={{ color: C.purple }}>qz</span> <span style={{ color: C.blue }}>-u</span></div>
         </div>
-        <a
-          href={`https://github.com/${OWNER}/qlpm`}
-          target="_blank" rel="noreferrer"
-          style={{
-            display: "inline-flex", alignItems: "center", gap: 6,
-            marginTop: 16, fontSize: 13, color: C.purple,
-            borderBottom: `1px solid ${C.purple}40`, paddingBottom: 2,
-            transition: "border-color 0.2s",
-          }}
+        <a href={`https://github.com/${OWNER}/qlpm`} target="_blank" rel="noreferrer"
+          style={{ display: "inline-flex", alignItems: "center", gap: 6, marginTop: 16, fontSize: 13, color: C.purple, borderBottom: `1px solid ${C.purple}40`, paddingBottom: 2, transition: "border-color 0.2s" }}
           onMouseEnter={e => (e.currentTarget.style.borderColor = C.purple)}
           onMouseLeave={e => (e.currentTarget.style.borderColor = `${C.purple}40`)}
         >
@@ -539,7 +474,7 @@ function PackageManagerPage() {
 
 // ── Home page ─────────────────────────────────────────────
 function HomePage({ pkgCount }: { pkgCount: number }) {
-  const [stars, setStars]             = useState<number | null>(null);
+  const [stars, setStars]                 = useState<number | null>(null);
   const [totalContribs, setTotalContribs] = useState<number | null>(null);
 
   useEffect(() => {
@@ -563,37 +498,41 @@ function HomePage({ pkgCount }: { pkgCount: number }) {
   ];
 
   return (
-    <div className="fade-in" style={{ display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center" }}>
-      {/* Hero */}
-      <div style={{ position: "relative", marginBottom: 48, display: "flex", flexDirection: "column", alignItems: "center" }}>
-        <img src="/quartzlinux-colored.svg" alt="" aria-hidden
-          style={{
-            position: "absolute", width: 260, height: 260,
-            top: "50%", left: "50%",
-            transform: "translate(-50%, -50%)",
-            filter: "blur(48px)", opacity: 0.35,
-            pointerEvents: "none", userSelect: "none",
-          }}
-          onError={e => { (e.target as HTMLImageElement).style.display = "none"; }}
-        />
-        <div style={{ position: "relative", zIndex: 1 }}>
-          <h1 style={{
-            fontSize: 64, fontWeight: 800, color: C.white,
-            letterSpacing: "-0.04em", lineHeight: 1, marginBottom: 20,
-          }}>
-            Quartz Linux
-          </h1>
-          <p style={{ fontSize: 16, color: C.muted, lineHeight: 1.7, maxWidth: 480, margin: "0 auto" }}>
-            A dev-oriented package manager for Linux. Fast, and human-readable.
-            Every package is defined by a{" "}
-            <code style={{ fontFamily: "JetBrains Mono", fontSize: 13, background: "#1a1a24", padding: "2px 6px", borderRadius: 4, color: C.orange }}>TOML</code>
-            {" "}file that tells Quartz how packages work declaratively.
-          </p>
-        </div>
+    <div className="fade-in" style={{ position: "relative", display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center", minHeight: "calc(100vh - 156px)", overflow: "hidden" }}>
+
+      {/* Massive logo — bottom-left, blur reduced 25% (36px vs 48px before) */}
+      <img src="/quartzlinux-colored.svg" alt="" aria-hidden
+        style={{
+          position: "absolute",
+          width: 640, height: 640,
+          bottom: -120, left: -120,
+          filter: "blur(36px)",
+          opacity: 0.28,
+          pointerEvents: "none",
+          userSelect: "none",
+          zIndex: 0,
+        }}
+        onError={e => { (e.target as HTMLImageElement).style.display = "none"; }}
+      />
+
+      {/* Hero text */}
+      <div style={{ position: "relative", zIndex: 1, marginBottom: 48, display: "flex", flexDirection: "column", alignItems: "center" }}>
+        <h1 style={{
+          fontSize: 64, fontWeight: 800, color: C.white,
+          letterSpacing: "-0.04em", lineHeight: 1, marginBottom: 20,
+        }}>
+          Quartz Linux
+        </h1>
+        <p style={{ fontSize: 16, color: C.muted, lineHeight: 1.7, maxWidth: 480, margin: "0 auto" }}>
+          A dev-oriented package manager for Linux. Fast, and human-readable.
+          Every package is defined by a{" "}
+          <code style={{ fontFamily: "JetBrains Mono", fontSize: 13, background: "#1a1a24", padding: "2px 6px", borderRadius: 4, color: C.orange }}>TOML</code>
+          {" "}file that tells Quartz how packages work declaratively.
+        </p>
       </div>
 
       {/* Stats */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 14, width: "100%", maxWidth: 560, marginBottom: 48 }}>
+      <div style={{ position: "relative", zIndex: 1, display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 14, width: "100%", maxWidth: 560 }}>
         {stats.map(({ label, value }) => (
           <div key={label} className="stat-card">
             <div style={{ fontSize: 32, fontWeight: 700, color: C.white, fontFamily: "JetBrains Mono", marginBottom: 6 }}>{value}</div>
@@ -601,11 +540,34 @@ function HomePage({ pkgCount }: { pkgCount: number }) {
           </div>
         ))}
       </div>
+
+      {/* Footer credit — fixed bottom-right, only visible on home */}
+      <div style={{
+        position: "fixed", bottom: 22, right: 28,
+        fontSize: 11, color: C.muted,
+        display: "flex", alignItems: "center", gap: 5,
+        zIndex: 20, letterSpacing: "0.02em",
+      }}>
+        website designer{" "}
+        <a
+          href={`https://github.com/${OWNER}`}
+          target="_blank" rel="noreferrer"
+          style={{
+            color: C.purple, fontWeight: 600,
+            borderBottom: `1px solid ${C.purple}40`,
+            paddingBottom: 1,
+            transition: "border-color 0.2s",
+          }}
+          onMouseEnter={e => (e.currentTarget.style.borderColor = C.purple)}
+          onMouseLeave={e => (e.currentTarget.style.borderColor = `${C.purple}40`)}
+        >
+          @{OWNER}
+        </a>
+      </div>
     </div>
   );
 }
 
-// ── Packages page ─────────────────────────────────────────
 function PackagesPage() {
   const [list, setList]         = useState<string[]>([]);
   const [filtered, setFiltered] = useState<string[]>([]);
@@ -629,10 +591,7 @@ function PackagesPage() {
   }, [query, list]);
 
   async function selectPkg(name: string) {
-    setSelected(name);
-    setDetail(null);
-    setCommit(null);
-    setDetailLoading(true);
+    setSelected(name); setDetail(null); setCommit(null); setDetailLoading(true);
     const [pkgRes, commitsData] = await Promise.all([
       fetch(`${SERVER}/packages/${name}`).then(r => r.json()).catch(() => null),
       ghFetch(`/repos/${OWNER}/quartz-packages/commits?path=${encodeURIComponent(name + "/QZMAKE")}&per_page=1`).catch(() => []),
@@ -640,11 +599,7 @@ function PackagesPage() {
     setDetail(pkgRes);
     if (Array.isArray(commitsData) && commitsData.length > 0) {
       const c = commitsData[0];
-      setCommit({
-        sha: c.sha, message: c.commit.message.split("\n")[0],
-        author: c.commit.author.name, avatar: c.author?.avatar_url ?? "",
-        url: c.html_url, date: c.commit.author.date,
-      });
+      setCommit({ sha: c.sha, message: c.commit.message.split("\n")[0], author: c.commit.author.name, avatar: c.author?.avatar_url ?? "", url: c.html_url, date: c.commit.author.date });
     }
     setDetailLoading(false);
   }
@@ -657,19 +612,16 @@ function PackagesPage() {
             width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={C.text} strokeWidth="2">
             <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
           </svg>
-          <input className="search-input" type="text" placeholder="Search packages…"
-            value={query} onChange={e => setQuery(e.target.value)} />
+          <input className="search-input" type="text" placeholder="Search packages…" value={query} onChange={e => setQuery(e.target.value)} />
         </div>
         <div style={{ flex: 1, overflowY: "auto", display: "flex", flexDirection: "column", gap: 6 }}>
           {loading
-            ? [1, 2, 3, 4].map(i => <Skeleton key={i} h={44} />)
+            ? [1,2,3,4].map(i => <Skeleton key={i} h={44} />)
             : filtered.length === 0
               ? <div style={{ color: C.muted, fontSize: 13, padding: "12px 4px" }}>No packages found.</div>
               : filtered.map((name, i) => (
-                <div key={name}
-                  className={`pkg-card${selected === name ? " active" : ""} slide-in`}
-                  style={{ animationDelay: `${Math.min(i, 20) * 0.03}s` }}
-                  onClick={() => selectPkg(name)}>
+                <div key={name} className={`pkg-card${selected === name ? " active" : ""} slide-in`}
+                  style={{ animationDelay: `${Math.min(i, 20) * 0.03}s` }} onClick={() => selectPkg(name)}>
                   <span style={{ color: selected === name ? C.purple : C.blue, fontSize: 10, flexShrink: 0 }}>◆</span>
                   {name}
                 </div>
@@ -677,7 +629,6 @@ function PackagesPage() {
           }
         </div>
       </div>
-
       <div style={{ flex: 1, overflowY: "auto" }}>
         {!selected && !loading && (
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "100%", gap: 12, color: C.muted }}>
@@ -687,13 +638,7 @@ function PackagesPage() {
             <span style={{ fontSize: 13 }}>Select a package to view its details</span>
           </div>
         )}
-        {detailLoading && (
-          <div style={{ padding: 4 }}>
-            <Skeleton w="40%" h={24} />
-            <Skeleton w="60%" />
-            <Skeleton w="100%" h={180} />
-          </div>
-        )}
+        {detailLoading && <div style={{ padding: 4 }}><Skeleton w="40%" h={24} /><Skeleton w="60%" /><Skeleton w="100%" h={180} /></div>}
         {detail && !detailLoading && (
           <div className="fade-in">
             <div style={{ marginBottom: 8, display: "flex", alignItems: "baseline", gap: 10 }}>
@@ -701,12 +646,7 @@ function PackagesPage() {
               <span style={{ fontSize: 12, color: C.muted, fontFamily: "JetBrains Mono" }}>v{detail.package?.version}</span>
             </div>
             <p style={{ fontSize: 13, color: C.muted, marginBottom: 20 }}>{detail.package?.description}</p>
-            {commit && (
-              <>
-                <div style={{ fontSize: 10, letterSpacing: "0.1em", color: C.muted, textTransform: "uppercase", marginBottom: 8 }}>Latest Commit</div>
-                <CommitBadge commit={commit} />
-              </>
-            )}
+            {commit && (<><div style={{ fontSize: 10, letterSpacing: "0.1em", color: C.muted, textTransform: "uppercase", marginBottom: 8 }}>Latest Commit</div><CommitBadge commit={commit} /></>)}
             <div style={{ fontSize: 10, letterSpacing: "0.1em", color: C.muted, textTransform: "uppercase", marginBottom: 8 }}>QZMAKE</div>
             <QZMAKEView pkg={detail} />
           </div>
@@ -716,56 +656,49 @@ function PackagesPage() {
   );
 }
 
-// ── Docs page ─────────────────────────────────────────────
 function DocsPage() {
   const [active, setActive] = useState("installing");
   const docs: Record<string, { title: string; content: React.ReactNode }> = {
     installing: {
       title: "Installing & Removing Packages",
-      content: (
-        <>
-          <h3>Installing a package</h3>
-          <p>Use <code>qz -i</code> followed by the package name. Quartz will fetch the QZMAKE file, show you the install plan, and ask for confirmation.</p>
-          <div className="code-block" style={{ marginBottom: 16, fontSize: 12 }}>
-            <div><span style={{ color: C.purple }}>qz</span> <span style={{ color: C.blue }}>-i</span> <span style={{ color: "#6ee7b7" }}>ripgrep</span></div>
-          </div>
-          <h3>Removing a package</h3>
-          <p>Use <code>qz -r</code> to remove. Quartz reads the <code>[remove]</code> section of the QZMAKE and deletes only the files it placed.</p>
-          <div className="code-block" style={{ fontSize: 12 }}>
-            <div><span style={{ color: C.purple }}>qz</span> <span style={{ color: C.blue }}>-r</span> <span style={{ color: "#6ee7b7" }}>ripgrep</span></div>
-          </div>
-        </>
-      )
+      content: (<>
+        <h3>Installing a package</h3>
+        <p>Use <code>qz -i</code> followed by the package name. Quartz will fetch the QZMAKE file, show you the install plan, and ask for confirmation.</p>
+        <div className="code-block" style={{ marginBottom: 16, fontSize: 12 }}>
+          <div><span style={{ color: C.purple }}>qz</span> <span style={{ color: C.blue }}>-i</span> <span style={{ color: "#6ee7b7" }}>ripgrep</span></div>
+        </div>
+        <h3>Removing a package</h3>
+        <p>Use <code>qz -r</code> to remove. Quartz reads the <code>[remove]</code> section of the QZMAKE and deletes only the files it placed.</p>
+        <div className="code-block" style={{ fontSize: 12 }}>
+          <div><span style={{ color: C.purple }}>qz</span> <span style={{ color: C.blue }}>-r</span> <span style={{ color: "#6ee7b7" }}>ripgrep</span></div>
+        </div>
+      </>)
     },
     updating: {
       title: "Updating Packages",
-      content: (
-        <>
-          <h3>Update a single package</h3>
-          <p>Quartz checks the registry for a newer version and reinstalls if one exists.</p>
-          <div className="code-block" style={{ marginBottom: 16, fontSize: 12 }}>
-            <div><span style={{ color: C.purple }}>qz</span> <span style={{ color: C.blue }}>-u</span> <span style={{ color: "#6ee7b7" }}>ripgrep</span></div>
-          </div>
-          <h3>Update everything</h3>
-          <p>Running without a package name updates all installed packages.</p>
-          <div className="code-block" style={{ fontSize: 12 }}>
-            <div><span style={{ color: C.purple }}>qz</span> <span style={{ color: C.blue }}>-u</span></div>
-          </div>
-        </>
-      )
+      content: (<>
+        <h3>Update a single package</h3>
+        <p>Quartz checks the registry for a newer version and reinstalls if one exists.</p>
+        <div className="code-block" style={{ marginBottom: 16, fontSize: 12 }}>
+          <div><span style={{ color: C.purple }}>qz</span> <span style={{ color: C.blue }}>-u</span> <span style={{ color: "#6ee7b7" }}>ripgrep</span></div>
+        </div>
+        <h3>Update everything</h3>
+        <p>Running without a package name updates all installed packages.</p>
+        <div className="code-block" style={{ fontSize: 12 }}>
+          <div><span style={{ color: C.purple }}>qz</span> <span style={{ color: C.blue }}>-u</span></div>
+        </div>
+      </>)
     },
     contributing: {
       title: "Contributing",
-      content: (
-        <>
-          <h3>Adding a package</h3>
-          <p>Fork <code>Xansidev/quartz-packages</code>, create a folder with your package name, and add a <code>QZMAKE</code> file. Open a pull request and a maintainer will review it.</p>
-          <h3>QZMAKE format</h3>
-          <p>Every QZMAKE file is a TOML file with five required sections: <code>[package]</code>, <code>[source]</code>, <code>[install]</code>, <code>[remove]</code>, and <code>[log]</code>.</p>
-          <h3>Reporting issues</h3>
-          <p>Open an issue on <code>Xansidev/qlpm</code> for client bugs, or <code>Xansidev/quartz-server</code> for registry issues.</p>
-        </>
-      )
+      content: (<>
+        <h3>Adding a package</h3>
+        <p>Fork <code>Xansidev/quartz-packages</code>, create a folder with your package name, and add a <code>QZMAKE</code> file. Open a pull request and a maintainer will review it.</p>
+        <h3>QZMAKE format</h3>
+        <p>Every QZMAKE file is a TOML file with five required sections: <code>[package]</code>, <code>[source]</code>, <code>[install]</code>, <code>[remove]</code>, and <code>[log]</code>.</p>
+        <h3>Reporting issues</h3>
+        <p>Open an issue on <code>Xansidev/qlpm</code> for client bugs, or <code>Xansidev/quartz-server</code> for registry issues.</p>
+      </>)
     }
   };
 
@@ -775,13 +708,7 @@ function DocsPage() {
         <div style={{ fontSize: 10, letterSpacing: "0.1em", color: C.muted, textTransform: "uppercase", marginBottom: 12 }}>Topics</div>
         {Object.entries(docs).map(([key, { title }]) => (
           <div key={key} onClick={() => setActive(key)}
-            style={{
-              padding: "8px 12px", borderRadius: 6, cursor: "none", fontSize: 13,
-              color: active === key ? C.purple : C.muted,
-              background: active === key ? "#1e1a2e" : "transparent",
-              borderLeft: `2px solid ${active === key ? C.purple : "transparent"}`,
-              transition: "all 0.15s", marginBottom: 2,
-            }}>
+            style={{ padding: "8px 12px", borderRadius: 6, cursor: "none", fontSize: 13, color: active === key ? C.purple : C.muted, background: active === key ? "#1e1a2e" : "transparent", borderLeft: `2px solid ${active === key ? C.purple : "transparent"}`, transition: "all 0.15s", marginBottom: 2 }}>
             {title}
           </div>
         ))}
@@ -795,7 +722,6 @@ function DocsPage() {
   );
 }
 
-// ── Contributors page ─────────────────────────────────────
 function ContribPage() {
   const [contribs, setContribs] = useState<Contributor[]>([]);
   const [loading, setLoading]   = useState(true);
@@ -823,7 +749,7 @@ function ContribPage() {
       <div style={{ fontSize: 11, letterSpacing: "0.12em", color: C.purple, textTransform: "uppercase", marginBottom: 8 }}>all repos</div>
       <h2 style={{ fontSize: 22, fontWeight: 700, color: C.white, marginBottom: 20 }}>Contributors</h2>
       {loading
-        ? [1, 2, 3].map(i => <Skeleton key={i} h={60} />)
+        ? [1,2,3].map(i => <Skeleton key={i} h={60} />)
         : contribs.length === 0
           ? <p style={{ color: C.muted, fontSize: 13 }}>No contributors found.</p>
           : contribs.map((c, i) => (
@@ -843,7 +769,6 @@ function ContribPage() {
   );
 }
 
-// ── App ───────────────────────────────────────────────────
 export default function App() {
   const [page, setPage]         = useState<"home" | "packages" | "docs" | "contrib" | "pkgmgr">("home");
   const [pkgCount, setPkgCount] = useState(0);
@@ -870,22 +795,16 @@ export default function App() {
 
       <header style={{
         position: "fixed", top: 0, left: 0, right: 0, height: 56,
-        background: `${C.bg}ee`,
-        backdropFilter: "blur(12px)",
+        background: `${C.bg}ee`, backdropFilter: "blur(12px)",
         borderBottom: `1px solid ${C.border}`,
         display: "flex", alignItems: "center", justifyContent: "center",
         padding: "0 24px", zIndex: 50,
       }}>
-        {/* Logo left */}
         <div style={{ position: "absolute", left: 24, display: "flex", alignItems: "center", gap: 10 }}>
           <img src="/quartzlinux.svg" alt="Quartz Linux" style={{ width: 24, height: 24 }}
             onError={e => { (e.target as HTMLImageElement).style.display = "none"; }} />
-          <span style={{ fontWeight: 700, fontSize: 15, color: C.white, letterSpacing: "-0.02em" }}>
-            Quartz Linux
-          </span>
+          <span style={{ fontWeight: 700, fontSize: 15, color: C.white, letterSpacing: "-0.02em" }}>Quartz Linux</span>
         </div>
-
-        {/* Nav centered */}
         <nav style={{ display: "flex", gap: 4 }}>
           {navItems.map(({ key, label }) => (
             <button key={key} className={`tab-btn${page === key ? " active" : ""}`} onClick={() => setPage(key)}>
