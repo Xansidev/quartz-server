@@ -532,7 +532,7 @@ export default function App() {
             message: c.commit.message.split("\n")[0],
             author:  c.commit.author.name,
             avatar:  c.author?.avatar_url ?? "",
-            url:     c.html_url,
+            html_url:     c.html_url,
             date:    c.commit.author.date
           }))
         };
