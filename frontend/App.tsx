@@ -739,6 +739,9 @@ function ContribPage() {
         if (merged[c.login]) merged[c.login].contributions += c.contributions;
         else merged[c.login] = { ...c };
       });
+      console.log("Raw GitHub results:", results);
+      console.log("Merged:", merged);
+      //these are to show data that i can't see.
       setContribs(Object.values(merged).sort((a, b) => b.contributions - a.contributions));
       setLoading(false);
     });
