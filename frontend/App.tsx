@@ -498,16 +498,16 @@ function HomePage({ pkgCount }: { pkgCount: number }) {
   ];
 
   return (
-    <div className="fade-in" style={{ position: "relative", display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center", minHeight: "calc(100vh - 156px)", overflow: "hidden" }}>
+    <div className="fade-in" style={{ position: "relative", display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center", minHeight: "calc(100vh - 156px)", overflow: "visible" }}>
 
-      {/* Massive logo — bottom-left, blur reduced 25% (36px vs 48px before) */}
+      {/* Massive logo bottom-left, blur reduced 25% (36px vs 48px before) */}
       <img src="/quartzlinux-colored.svg" alt="" aria-hidden
         style={{
-          position: "absolute",
-          width: 853, height: 853,
-          bottom: -260, left: -390,
-          filter: "blur(18px)",
-          opacity: 0.28,
+          position: "fixed",
+          width: 900, height: 900,
+          bottom: -200, left: -320,
+          filter: "blur(22px)",
+          opacity: 0.22,
           pointerEvents: "none",
           userSelect: "none",
           zIndex: 0,
