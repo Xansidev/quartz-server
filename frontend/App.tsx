@@ -504,8 +504,8 @@ function HomePage({ pkgCount }: { pkgCount: number }) {
       <img src="/quartzlinux-colored.svg" alt="" aria-hidden
         style={{
           position: "absolute",
-          width: 1280, height: 1280,
-          bottom: -120, left: -120,
+          width: 853, height: 853,
+          bottom: -260, left: -390,
           filter: "blur(18px)",
           opacity: 0.28,
           pointerEvents: "none",
