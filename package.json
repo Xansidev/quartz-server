@@ -3,12 +3,11 @@
   "version": "0.1.0",
   "description": "Quartz package registry server",
   "main": "dist/index.js",
-  "scripts": {
-    "dev:api": "ts-node src/index.ts",
-    "dev:frontend": "vite",
-    "build": "tsc && vite build",
-    "start": "node dist/index.js"
-  },
+"scripts": {
+  "build": "vite build",
+  "start": "node dist/index.js",
+  "dev": "vite"
+},
   "dependencies": {
     "@iarna/toml": "^2.2.5",
     "cors": "^2.8.5",
