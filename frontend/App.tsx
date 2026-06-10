@@ -727,19 +727,13 @@ function ContribPage() {
   const [loading, setLoading]   = useState(true);
 
   useEffect(() => {
-    /* Promise.all(
+    Promise.all(
       REPOS.map(name =>
         ghFetch(`/repos/${OWNER}/${name}/contributors?per_page=100`)
           .then((d: any[]) => d.map((c: any) => ({ login: c.login, avatar: c.avatar_url, contributions: c.contributions, url: c.html_url })))
           .catch(() => [] as Contributor[])
       )
-    )*/
-        Promise.all(
-          REPOS.map(name =>
-            ghFetch(`/repos/${OWNER}/${name}/commits?per_page=100`)
-          .catch(() => [])
-  )
-).then(results => {
+    ).then(results => {
       const merged: Record<string, Contributor> = {};
       results.flat().forEach(c => {
         if (merged[c.login]) merged[c.login].contributions += c.contributions;
