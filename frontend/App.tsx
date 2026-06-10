@@ -11,6 +11,7 @@ const C = {
   purple:  "#a78bfa",
   blue:    "#4FC3F7",
   white:   "#ffffff",
+  orange:  "#FF7A00",
 };
 
 type Contributor = { login: string; avatar: string; contributions: number; url: string };
@@ -585,8 +586,8 @@ function HomePage({ pkgCount }: { pkgCount: number }) {
           <p style={{ fontSize: 16, color: C.muted, lineHeight: 1.7, maxWidth: 480, margin: "0 auto" }}>
             A dev-oriented package manager for Linux. Fast, and human-readable.
             Every package is defined by a{" "}
-            <code style={{ fontFamily: "JetBrains Mono", fontSize: 13, background: "#1a1a24", padding: "2px 6px", borderRadius: 4, color: C.blue }}>QZMAKE</code>
-            {" "}file — a simple TOML that tells Quartz exactly where everything goes.
+            <code style={{ fontFamily: "JetBrains Mono", fontSize: 13, background: "#1a1a24", padding: "2px 6px", borderRadius: 4, color: C.orange }}>TOML</code>
+            {" "}file that tells Quartz how packages work declaratively.
           </p>
         </div>
       </div>
