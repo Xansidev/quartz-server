@@ -727,24 +727,59 @@ function ContribPage() {
   const [loading, setLoading]   = useState(true);
 
   useEffect(() => {
-    Promise.all(
-      REPOS.map(name =>
-        ghFetch(`/repos/${OWNER}/${name}/contributors?per_page=100`)
-          .then((d: any[]) => d.map((c: any) => ({ login: c.login, avatar: c.avatar_url, contributions: c.contributions, url: c.html_url })))
-          .catch(() => [] as Contributor[])
-      )
-    ).then(results => {
+    async function load() {
       const merged: Record<string, Contributor> = {};
-      results.flat().forEach(c => {
-        if (merged[c.login]) merged[c.login].contributions += c.contributions;
-        else merged[c.login] = { ...c };
-      });
-      console.log("Raw GitHub results:", results);
-      console.log("Merged:", merged);
-      //these are to show data that i can't see.
-      setContribs(Object.values(merged).sort((a, b) => b.contributions - a.contributions));
+
+      await Promise.all(
+        REPOS.map(async (name) => {
+          // Fetch both contributors endpoint AND raw commits
+          const [contribData, commitData] = await Promise.all([
+            ghFetch(`/repos/${OWNER}/${name}/contributors?per_page=100&anon=1`)
+              .catch(() => []),
+            ghFetch(`/repos/${OWNER}/${name}/commits?per_page=100`)
+              .catch(() => []),
+          ]);
+
+          // From contributors endpoint
+          if (Array.isArray(contribData)) {
+            contribData.forEach((c: any) => {
+              if (!c.login) return; // skip anon
+              if (merged[c.login]) merged[c.login].contributions += c.contributions;
+              else merged[c.login] = {
+                login: c.login,
+                avatar: c.avatar_url,
+                contributions: c.contributions,
+                url: c.html_url,
+              };
+            });
+          }
+
+          // From commits, catches people the contributors endpoint missed
+          if (Array.isArray(commitData)) {
+            commitData.forEach((c: any) => {
+              const login = c.author?.login;
+              if (!login) return;
+              if (!merged[login]) {
+                merged[login] = {
+                  login,
+                  avatar: c.author.avatar_url,
+                  contributions: 1,
+                  url: c.author.html_url,
+                };
+              }
+              // Don't double-count if contributors API already caught them
+            });
+          }
+        })
+      );
+
+      setContribs(
+        Object.values(merged).sort((a, b) => b.contributions - a.contributions)
+      );
       setLoading(false);
-    });
+    }
+
+    load();
   }, []);
 
   return (
