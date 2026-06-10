@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 
-const SERVER = "";  // same origin
+const SERVER = "https://quartzlinux.vercel.app";  // fix to point to API
 
 // ── Palette ──────────────────────────────────────────────
 const C = {
