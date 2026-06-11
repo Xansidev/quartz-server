@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 
 const SERVER = "https://quartzlinux.vercel.app";
-
+//For some reason vercel won't update?
 const C = {
   bg:      "#0a0a0f",
   surface: "#13131a",
