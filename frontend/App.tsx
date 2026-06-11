@@ -969,57 +969,21 @@ function HomePage({ pkgCount }: { pkgCount: number }) {
         </div>
       </div>
 
-      {/* Orbit ring centered */}
-<div
-  style={{
-    position: "relative",
-    zIndex: 3,
-    display: "flex",
-    flexDirection: "column",
-    alignItems: "center",
-    gap: 24,
-    width: "100%",
-    marginBottom: 8,
-  }}
->
-  <OrbitRing pkgCount={pkgCount} />
-
-  {/* Stats row */}
-  <div
-    style={{
-      display: "grid",
-      gridTemplateColumns: "repeat(3, minmax(160px, 1fr))",
-      gap: 14,
-      width: "100%",
-      maxWidth: 720,
-    }}
-  >
-    {stats.map(({ label, value }) => (
-      <div key={label} className="stat-card" style={{ textAlign: "center" }}>
-        <div
-          style={{
-            fontSize: 28,
-            fontWeight: 700,
-            color: C.white,
-            fontFamily: "JetBrains Mono",
-            marginBottom: 4,
-          }}
-        >
-          {value}
-        </div>
-        <div
-          style={{
-            fontSize: 12,
-            color: C.muted,
-            letterSpacing: "0.04em",
-          }}
-        >
-          {label}
+      {/* Orbit ring + stats side by side */}
+      <div style={{ position: "relative", zIndex: 3, display: "flex", alignItems: "center", gap: 48, marginBottom: 8 }}>
+        <OrbitRing pkgCount={pkgCount} />
+        <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 14, width: 200 }}>
+          {stats.map(({ label, value }) => (
+            <div key={label} className="stat-card" style={{ textAlign: "left" }}>
+              <div style={{ fontSize: 28, fontWeight: 700, color: C.white, fontFamily: "JetBrains Mono", marginBottom: 4 }}>{value}</div>
+              <div style={{ fontSize: 12, color: C.muted, letterSpacing: "0.04em" }}>{label}</div>
+            </div>
+          ))}
         </div>
       </div>
-    ))}
-  </div>
-</div>
+    </div>
+  );
+}
 
 // ── Packages page (Core / Extra tabs, full screen width) ──
 type PkgEntry = { name: string; category: string };
