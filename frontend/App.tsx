@@ -16,7 +16,7 @@ const C = {
 };
 
 type Contributor = { login: string; avatar: string; contributions: number; url: string };
-type PackageDetail = { package: any; source: any; install: any; remove: any; log: any };
+type PackageDetail = { package: any; source: any; install: any; remove: any; log: any; [key: string]: any };
 type CommitInfo = { sha: string; message: string; author: string; avatar: string; url: string; date: string };
 type LangData = { name: string; bytes: number; color: string };
 
@@ -58,10 +58,33 @@ function langColor(name: string) {
   return LANG_COLORS[name] ?? "#8b8b9e";
 }
 
+// ── Mobile detection ──────────────────────────────────────
+function useIsMobile(breakpoint = 768) {
+  const [isMobile, setIsMobile] = useState<boolean>(
+    () => typeof window !== "undefined" && window.innerWidth <= breakpoint
+  );
+  useEffect(() => {
+    function onResize() {
+      setIsMobile(window.innerWidth <= breakpoint);
+    }
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, [breakpoint]);
+  return isMobile;
+}
+
 const globalCSS = `
   @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-  html, body { height: 100%; }
+  html, body {
+    height: 100%;
+    width: 100%;
+    max-width: 100vw;
+    overflow-x: hidden;
+    position: relative;
+    touch-action: pan-y;
+    -webkit-overflow-scrolling: touch;
+  }
   body { background: ${C.bg}; color: ${C.text}; font-family: 'Inter', sans-serif; cursor: none; }
   ::-webkit-scrollbar { width: 4px; }
   ::-webkit-scrollbar-track { background: ${C.bg}; }
@@ -111,6 +134,12 @@ const globalCSS = `
     mix-blend-mode: screen;
   }
 
+  /* Hide the custom cursor on touch devices and re-enable a normal cursor */
+  @media (pointer: coarse) {
+    #cursor-dot, #cursor-glow { display: none !important; }
+    *, * { cursor: auto !important; }
+  }
+
   .pkg-card {
     padding: 14px 18px;
     border-radius: 8px;
@@ -138,6 +167,8 @@ const globalCSS = `
     cursor: none;
     transition: all 0.2s;
     font-family: 'Inter', sans-serif;
+    white-space: nowrap;
+    flex-shrink: 0;
   }
   .tab-btn:hover { border-color: ${C.purple}; color: ${C.text}; }
   .tab-btn.active { background: ${C.purple}20; border-color: ${C.purple}; color: ${C.purple}; }
@@ -166,6 +197,9 @@ const globalCSS = `
     font-size: 12.5px;
     line-height: 1.9;
     overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    touch-action: pan-x pan-y;
+    max-width: 100%;
   }
 
   .doc-section { animation: fadeIn 0.3s ease both; }
@@ -245,13 +279,14 @@ const globalCSS = `
   }
   .hero-btn-ghost:hover { border-color: ${C.purple} !important; color: ${C.purple}; transform: translateY(-1px); }
 
-  /* Infinite scroll topics */
+  /* Infinite scroll topics (desktop) */
   .topics-scroll-wrap {
     width: 100%;
     overflow-y: auto;
     max-height: calc(100vh - 120px);
     scroll-behavior: smooth;
     padding-right: 8px;
+    -webkit-overflow-scrolling: touch;
   }
   .topics-scroll-wrap::-webkit-scrollbar { width: 3px; }
   .topics-scroll-wrap::-webkit-scrollbar-thumb { background: ${C.border}; border-radius: 2px; }
@@ -276,6 +311,32 @@ const globalCSS = `
     background: #1a1a24; padding: 2px 6px; border-radius: 4px; color: ${C.blue};
   }
 
+  /* Horizontal pager for Package Manager page on mobile:
+     page 1 = hero/donut/topics list, page 2 = topic content.
+     Swiping left/right pages between them; tapping a topic also pages over. */
+  .pm-pager {
+    display: flex;
+    width: 100%;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    -webkit-overflow-scrolling: touch;
+    touch-action: pan-x pan-y;
+    scrollbar-width: none;
+  }
+  .pm-pager::-webkit-scrollbar { display: none; }
+  .pm-page {
+    flex: 0 0 100%;
+    width: 100%;
+    min-width: 0;
+    scroll-snap-align: start;
+  }
+  .pm-page-scroll {
+    height: 100%;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    padding-right: 4px;
+  }
+
   /* Footer bar */
   .footer-bar {
     position: fixed;
@@ -291,7 +352,26 @@ const globalCSS = `
     backdrop-filter: blur(12px);
   }
 
+  .nav-scroll {
+    display: flex;
+    gap: 6px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    touch-action: pan-x pan-y;
+    scrollbar-width: none;
+  }
+  .nav-scroll::-webkit-scrollbar { display: none; }
+
   * { cursor: none !important; }
+
+  @media (max-width: 768px) {
+    .code-block { font-size: 11px; padding: 14px 16px; line-height: 1.7; }
+    .topic-section { padding: 24px 0; }
+    .topic-section h2 { font-size: 18px; }
+    .topic-section p { font-size: 13.5px; }
+    .stat-card { padding: 16px 18px !important; }
+    .contrib-card { padding: 12px 14px; }
+  }
 `;
 
 function Cursor() {
@@ -357,33 +437,74 @@ function QZField({ k, v, link }: { k: string; v: string; link?: boolean }) {
     </div>
   );
 }
+
+// Generic, lossless renderer for any value inside a QZMAKE-derived object.
+// Handles nested objects, arrays of primitives, and arrays of objects
+// without dropping any fields the backend returns.
+function QZValue({ k, v }: { k: string; v: any }) {
+  if (v === null || v === undefined) {
+    return <QZField k={k} v="" />;
+  }
+
+  if (Array.isArray(v)) {
+    if (v.length === 0) return <QZField k={k} v="[]" />;
+    const allPrimitive = v.every(item => item === null || typeof item !== "object");
+    if (allPrimitive) {
+      return <QZField k={k} v={JSON.stringify(v)} />;
+    }
+    return (
+      <div style={{ marginBottom: 4 }}>
+        <span style={{ color: C.blue }}>{k}</span>
+        <span style={{ color: C.muted }}> = [</span>
+        <div style={{ paddingLeft: 16 }}>
+          {v.map((item, i) => (
+            <div key={i} style={{ marginBottom: 2 }}>
+              {item !== null && typeof item === "object"
+                ? Object.entries(item).map(([kk, vv]) => <QZValue key={kk} k={kk} v={vv} />)
+                : <QZField k={String(i)} v={String(item)} />}
+            </div>
+          ))}
+        </div>
+        <span style={{ color: C.muted }}>]</span>
+      </div>
+    );
+  }
+
+  if (typeof v === "object") {
+    return (
+      <div style={{ marginBottom: 4 }}>
+        <span style={{ color: C.purple }}>[{k}]</span>
+        <div style={{ paddingLeft: 16 }}>
+          {Object.entries(v).map(([kk, vv]) => <QZValue key={kk} k={kk} v={vv} />)}
+        </div>
+      </div>
+    );
+  }
+
+  if (typeof v === "boolean" || typeof v === "number") {
+    return <QZField k={k} v={String(v)} />;
+  }
+
+  const isLink = typeof v === "string" && /^https?:\/\//.test(v);
+  return <QZField k={k} v={String(v)} link={isLink} />;
+}
+
+// Renders EVERY top-level section and field present on the package detail
+// object exactly as returned by the server — nothing is parsed out or hidden.
 function QZMAKEView({ pkg }: { pkg: PackageDetail }) {
+  const entries = Object.entries(pkg ?? {});
+  if (entries.length === 0) {
+    return <div className="code-block fade-in" style={{ color: C.muted }}>No data.</div>;
+  }
   return (
     <div className="code-block fade-in">
-      <QZSection title="package">
-        <QZField k="name"        v={pkg.package?.name        ?? ""} />
-        <QZField k="version"     v={pkg.package?.version     ?? ""} />
-        <QZField k="description" v={pkg.package?.description ?? ""} />
-        <QZField k="github"      v={pkg.package?.github      ?? ""} link />
-        <QZField k="maintainer"  v={pkg.package?.maintainer  ?? ""} />
-        <QZField k="deps"        v={JSON.stringify(pkg.package?.deps ?? [])} />
-      </QZSection>
-      <QZSection title="source">
-        <QZField k="url"    v={pkg.source?.url    ?? ""} link />
-        <QZField k="sha256" v={pkg.source?.sha256 ?? ""} />
-      </QZSection>
-      <QZSection title="install">
-        {(pkg.install?.bin ?? []).map((b: string, i: number) =>
-          <QZField key={i} k="bin" v={`["${b}"]`} />)}
-      </QZSection>
-      <QZSection title="remove">
-        {(pkg.remove?.bin ?? []).map((b: string, i: number) =>
-          <QZField key={i} k="bin" v={`["${b}"]`} />)}
-      </QZSection>
-      <QZSection title="log">
-        <QZField k="install_log" v={pkg.log?.install_log ?? ""} />
-        <QZField k="remove_log"  v={pkg.log?.remove_log  ?? ""} />
-      </QZSection>
+      {entries.map(([sectionKey, sectionVal]) => (
+        <QZSection key={sectionKey} title={sectionKey}>
+          {sectionVal !== null && typeof sectionVal === "object" && !Array.isArray(sectionVal)
+            ? Object.entries(sectionVal).map(([k, v]) => <QZValue key={k} k={k} v={v} />)
+            : <QZValue k={sectionKey} v={sectionVal} />}
+        </QZSection>
+      ))}
     </div>
   );
 }
@@ -419,9 +540,9 @@ function CommitBadge({ commit }: { commit: CommitInfo }) {
   );
 }
 
-function LangDonut({ langs, logoSrc }: { langs: LangData[]; logoSrc: string }) {
-  const SIZE   = 280;
-  const STROKE = 28;
+function LangDonut({ langs, logoSrc, size = 280 }: { langs: LangData[]; logoSrc: string; size?: number }) {
+  const SIZE   = size;
+  const STROKE = Math.max(16, Math.round(size * 0.1));
   const R      = (SIZE - STROKE) / 2;
   const CIRC   = 2 * Math.PI * R;
   const CX     = SIZE / 2;
@@ -455,12 +576,12 @@ function LangDonut({ langs, logoSrc }: { langs: LangData[]; logoSrc: string }) {
         </svg>
         <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
           <img src={logoSrc} alt="QLPM"
-            style={{ width: 72, height: 72, filter: "drop-shadow(0 0 12px rgba(167,139,250,0.4))" }}
+            style={{ width: SIZE * 0.26, height: SIZE * 0.26, filter: "drop-shadow(0 0 12px rgba(167,139,250,0.4))" }}
             onError={e => { (e.target as HTMLImageElement).style.display = "none"; }}
           />
         </div>
       </div>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px 28px", maxWidth: 340, width: "100%" }}>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px 28px", maxWidth: Math.min(340, SIZE * 1.25), width: "100%" }}>
         {segments.map(s => (
           <div key={s.name} style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <div style={{ width: 10, height: 10, borderRadius: "50%", background: langColor(s.name), flexShrink: 0 }} />
@@ -620,6 +741,7 @@ const TOPICS = [
 
 // ── Package Manager Page ──────────────────────────────────
 function PackageManagerPage() {
+  const isMobile = useIsMobile();
   const [langs, setLangs]       = useState<LangData[]>([]);
   const [loading, setLoading]   = useState(true);
   const [repoInfo, setRepoInfo] = useState<{ stars: number; desc: string } | null>(null);
@@ -627,6 +749,7 @@ function PackageManagerPage() {
   const [topicSearch, setTopicSearch]     = useState("");
   const topicRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const scrollRef = useRef<HTMLDivElement>(null);
+  const pagerRef  = useRef<HTMLDivElement>(null);
 
   const filteredTopics = topicSearch.trim()
     ? TOPICS.filter(t => t.label.toLowerCase().includes(topicSearch.toLowerCase()))
@@ -648,9 +771,31 @@ function PackageManagerPage() {
 
   function scrollToTopic(id: string) {
     setActiveTopicId(id);
+
+    if (isMobile) {
+      // Page over to the content panel...
+      if (pagerRef.current) {
+        pagerRef.current.scrollTo({ left: pagerRef.current.clientWidth, behavior: "smooth" });
+      }
+      // ...and center the chosen topic's heading within it.
+      const el = topicRefs.current[id];
+      if (el && scrollRef.current) {
+        const container = scrollRef.current;
+        const target = el.offsetTop - (container.clientHeight / 2) + (el.clientHeight / 2);
+        container.scrollTo({ top: Math.max(0, target), behavior: "smooth" });
+      }
+      return;
+    }
+
     const el = topicRefs.current[id];
     if (el && scrollRef.current) {
       scrollRef.current.scrollTo({ top: el.offsetTop - 16, behavior: "smooth" });
+    }
+  }
+
+  function backToTopics() {
+    if (pagerRef.current) {
+      pagerRef.current.scrollTo({ left: 0, behavior: "smooth" });
     }
   }
 
@@ -668,106 +813,157 @@ function PackageManagerPage() {
     }
     container.addEventListener("scroll", onScroll);
     return () => container.removeEventListener("scroll", onScroll);
-  }, []);
+  }, [isMobile]);
+
+  const heroBlock = (
+    <div style={{ textAlign: "center" }}>
+      <h1 style={{ fontSize: isMobile ? 40 : 48, fontWeight: 800, color: C.white, letterSpacing: "-0.04em", lineHeight: 1, marginBottom: 10 }}>
+        QLPM
+      </h1>
+      <p style={{ fontSize: 13, color: C.muted, lineHeight: 1.7, marginBottom: 14 }}>
+        The Quartz Linux Package Manager. Install, remove, search and update packages
+        defined by <code style={{ fontFamily: "JetBrains Mono", fontSize: 12, background: "#1a1a24", padding: "2px 5px", borderRadius: 4, color: C.blue }}>QZMAKE</code> files.
+      </p>
+      {repoInfo && (
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, fontSize: 12, color: C.muted, marginBottom: 16 }}>
+          <svg width="13" height="13" viewBox="0 0 24 24" fill={C.purple} stroke="none">
+            <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+          </svg>
+          <span style={{ color: C.purple, fontWeight: 600 }}>{repoInfo.stars}</span>
+          <span>stars on GitHub</span>
+        </div>
+      )}
+      <a href={`https://github.com/${OWNER}/qlpm`} target="_blank" rel="noreferrer"
+        style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12, color: C.purple, borderBottom: `1px solid ${C.purple}40`, paddingBottom: 2 }}
+        onMouseEnter={e => (e.currentTarget.style.borderColor = C.purple)}
+        onMouseLeave={e => (e.currentTarget.style.borderColor = `${C.purple}40`)}
+      >
+        View on GitHub →
+      </a>
+    </div>
+  );
+
+  const donutBlock = (
+    <div style={{ padding: "8px 0" }}>
+      {loading
+        ? <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 10 }}><Skeleton w="200px" h={200} /><Skeleton w="160px" /></div>
+        : langs.length > 0
+          ? <LangDonut langs={langs} logoSrc="/quartzlinux.svg" size={isMobile ? 200 : 280} />
+          : <p style={{ color: C.muted, fontSize: 12, textAlign: "center" }}>Could not load language data.</p>
+      }
+    </div>
+  );
+
+  const topicsSearchBlock = (
+    <div style={{ position: "relative", marginBottom: 12 }}>
+      <svg style={{ position: "absolute", left: 9, top: "50%", transform: "translateY(-50%)", opacity: 0.4, pointerEvents: "none" }}
+        width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={C.text} strokeWidth="2">
+        <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+      </svg>
+      <input
+        className="search-input"
+        type="text"
+        placeholder="Search…"
+        value={topicSearch}
+        onChange={e => setTopicSearch(e.target.value)}
+        style={{ padding: "7px 10px 7px 28px", fontSize: 12 }}
+      />
+    </div>
+  );
+
+  const topicsListBlock = (
+    <>
+      <div style={{ fontSize: 10, letterSpacing: "0.1em", color: C.muted, textTransform: "uppercase", marginBottom: 10 }}>Topics</div>
+      {filteredTopics.length === 0
+        ? <div style={{ fontSize: 12, color: C.muted, padding: "4px 0" }}>No matches.</div>
+        : filteredTopics.map(t => (
+          <div key={t.id} onClick={() => scrollToTopic(t.id)}
+            style={{
+              padding: isMobile ? "10px 12px" : "7px 10px", borderRadius: 6, cursor: "none", fontSize: 13,
+              color: activeTopicId === t.id ? C.purple : C.muted,
+              background: activeTopicId === t.id ? "#1e1a2e" : "transparent",
+              borderLeft: `2px solid ${activeTopicId === t.id ? C.purple : "transparent"}`,
+              transition: "all 0.15s", marginBottom: 2,
+              display: "flex", alignItems: "center", gap: 7,
+            }}>
+            <span style={{ fontSize: 10, opacity: 0.7 }}>{t.icon}</span>
+            {t.label}
+          </div>
+        ))
+      }
+    </>
+  );
+
+  const topicsContent = TOPICS.map(t => (
+    <div
+      key={t.id}
+      ref={el => { topicRefs.current[t.id] = el; }}
+      className="topic-section"
+    >
+      <h2>
+        <span style={{ fontSize: 14, color: C.purple, fontFamily: "JetBrains Mono" }}>{t.icon}</span>
+        {t.label}
+      </h2>
+      <div style={{ width: 24, height: 2, background: C.purple, borderRadius: 1, margin: "8px 0 20px" }} />
+      {t.content}
+    </div>
+  ));
+
+  if (isMobile) {
+    return (
+      <div className="fade-in" style={{ width: "100%" }}>
+        <div ref={pagerRef} className="pm-pager" style={{ height: "calc(100vh - 168px)" }}>
+          {/* Page 1: hero + donut + topics list */}
+          <div className="pm-page">
+            <div className="pm-page-scroll" style={{ display: "flex", flexDirection: "column", gap: 24, paddingBottom: 24 }}>
+              {heroBlock}
+              {donutBlock}
+              <div>
+                {topicsSearchBlock}
+                {topicsListBlock}
+              </div>
+            </div>
+          </div>
+
+          {/* Page 2: topic content */}
+          <div className="pm-page">
+            <div ref={scrollRef} className="pm-page-scroll">
+              <div
+                onClick={backToTopics}
+                style={{
+                  display: "inline-flex", alignItems: "center", gap: 6,
+                  fontSize: 12, color: C.purple, padding: "10px 0 6px",
+                  borderBottom: `1px solid ${C.purple}30`,
+                }}
+              >
+                ← Topics
+              </div>
+              {topicsContent}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="fade-in" style={{ display: "flex", gap: 32, width: "100%" }}>
 
       {/* ── Left column: hero + donut (unchanged sizes) ── */}
       <div style={{ width: 300, flexShrink: 0, display: "flex", flexDirection: "column", gap: 20 }}>
-        {/* Hero intro — no "Xansidev / qlpm" label */}
-        <div style={{ textAlign: "center" }}>
-          <h1 style={{ fontSize: 48, fontWeight: 800, color: C.white, letterSpacing: "-0.04em", lineHeight: 1, marginBottom: 10 }}>
-            QLPM
-          </h1>
-          <p style={{ fontSize: 13, color: C.muted, lineHeight: 1.7, marginBottom: 14 }}>
-            The Quartz Linux Package Manager. Install, remove, search and update packages
-            defined by <code style={{ fontFamily: "JetBrains Mono", fontSize: 12, background: "#1a1a24", padding: "2px 5px", borderRadius: 4, color: C.blue }}>QZMAKE</code> files.
-          </p>
-          {repoInfo && (
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, fontSize: 12, color: C.muted, marginBottom: 16 }}>
-              <svg width="13" height="13" viewBox="0 0 24 24" fill={C.purple} stroke="none">
-                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
-              </svg>
-              <span style={{ color: C.purple, fontWeight: 600 }}>{repoInfo.stars}</span>
-              <span>stars on GitHub</span>
-            </div>
-          )}
-          <a href={`https://github.com/${OWNER}/qlpm`} target="_blank" rel="noreferrer"
-            style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12, color: C.purple, borderBottom: `1px solid ${C.purple}40`, paddingBottom: 2 }}
-            onMouseEnter={e => (e.currentTarget.style.borderColor = C.purple)}
-            onMouseLeave={e => (e.currentTarget.style.borderColor = `${C.purple}40`)}
-          >
-            View on GitHub →
-          </a>
-        </div>
-
-        {/* Lang donut — no box */}
-        <div style={{ padding: "8px 0" }}>
-          {loading
-            ? <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 10 }}><Skeleton w="200px" h={200} /><Skeleton w="160px" /></div>
-            : langs.length > 0
-              ? <LangDonut langs={langs} logoSrc="/quartzlinux.svg" />
-              : <p style={{ color: C.muted, fontSize: 12, textAlign: "center" }}>Could not load language data.</p>
-          }
-        </div>
+        {heroBlock}
+        {donutBlock}
       </div>
 
       {/* ── Middle column: topics nav (unchanged size) ── */}
       <div style={{ width: 160, flexShrink: 0, paddingTop: 4 }}>
-        {/* Topics search */}
-        <div style={{ position: "relative", marginBottom: 12 }}>
-          <svg style={{ position: "absolute", left: 9, top: "50%", transform: "translateY(-50%)", opacity: 0.4, pointerEvents: "none" }}
-            width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={C.text} strokeWidth="2">
-            <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
-          </svg>
-          <input
-            className="search-input"
-            type="text"
-            placeholder="Search…"
-            value={topicSearch}
-            onChange={e => setTopicSearch(e.target.value)}
-            style={{ padding: "7px 10px 7px 28px", fontSize: 12 }}
-          />
-        </div>
-
-        <div style={{ fontSize: 10, letterSpacing: "0.1em", color: C.muted, textTransform: "uppercase", marginBottom: 10 }}>Topics</div>
-
-        {filteredTopics.length === 0
-          ? <div style={{ fontSize: 12, color: C.muted, padding: "4px 0" }}>No matches.</div>
-          : filteredTopics.map(t => (
-            <div key={t.id} onClick={() => scrollToTopic(t.id)}
-              style={{
-                padding: "7px 10px", borderRadius: 6, cursor: "none", fontSize: 13,
-                color: activeTopicId === t.id ? C.purple : C.muted,
-                background: activeTopicId === t.id ? "#1e1a2e" : "transparent",
-                borderLeft: `2px solid ${activeTopicId === t.id ? C.purple : "transparent"}`,
-                transition: "all 0.15s", marginBottom: 2,
-                display: "flex", alignItems: "center", gap: 7,
-              }}>
-              <span style={{ fontSize: 10, opacity: 0.7 }}>{t.icon}</span>
-              {t.label}
-            </div>
-          ))
-        }
+        {topicsSearchBlock}
+        {topicsListBlock}
       </div>
 
       {/* ── Right column: infinite scroll content, takes all remaining space ── */}
       <div ref={scrollRef} className="topics-scroll-wrap" style={{ flex: 1, minWidth: 0 }}>
-        {TOPICS.map(t => (
-          <div
-            key={t.id}
-            ref={el => { topicRefs.current[t.id] = el; }}
-            className="topic-section"
-          >
-            <h2>
-              <span style={{ fontSize: 14, color: C.purple, fontFamily: "JetBrains Mono" }}>{t.icon}</span>
-              {t.label}
-            </h2>
-            <div style={{ width: 24, height: 2, background: C.purple, borderRadius: 1, margin: "8px 0 20px" }} />
-            {t.content}
-          </div>
-        ))}
+        {topicsContent}
       </div>
 
     </div>
@@ -792,14 +988,15 @@ const ORBIT_ITEMS = [
 const ORBIT_DURATION = 9; // seconds for one full revolution (normal speed)
 const ORBIT_HOVER_DURATION = 22; // slows on hover
 
-function OrbitRing({ pkgCount }: { pkgCount: number }) {
+function OrbitRing({ radius = 110, scale = 1 }: { radius?: number; scale?: number }) {
   const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
   const [paused, setPaused]         = useState(false);
   const [angle, setAngle]           = useState(0);
   const rafRef  = useRef<number>(0);
   const lastRef = useRef<number>(0);
-  const RADIUS  = 110;
+  const RADIUS  = radius;
   const N       = ORBIT_ITEMS.length;
+  const centerSize = 56 * scale;
 
   useEffect(() => {
     function tick(ts: number) {
@@ -816,11 +1013,11 @@ function OrbitRing({ pkgCount }: { pkgCount: number }) {
   }, [hoveredIdx, paused]);
 
   return (
-    <div style={{ position: "relative", width: RADIUS * 2 + 80, height: RADIUS * 2 + 80, flexShrink: 0 }}>
+    <div style={{ position: "relative", width: RADIUS * 2 + 80 * scale, height: RADIUS * 2 + 80 * scale, flexShrink: 0 }}>
       {/* Orbit ring visual */}
       <div style={{
         position: "absolute",
-        inset: 40,
+        inset: 40 * scale,
         borderRadius: "50%",
         border: `1px solid rgba(167,139,250,0.12)`,
         pointerEvents: "none",
@@ -835,7 +1032,7 @@ function OrbitRing({ pkgCount }: { pkgCount: number }) {
           position: "absolute",
           left: "50%", top: "50%",
           transform: "translate(-50%,-50%)",
-          width: 56, height: 56,
+          width: centerSize, height: centerSize,
           display: "flex", alignItems: "center", justifyContent: "center",
           opacity: 0.7,
           transition: "opacity 0.2s, filter 0.2s",
@@ -848,9 +1045,10 @@ function OrbitRing({ pkgCount }: { pkgCount: number }) {
       {/* Orbiting icons */}
       {ORBIT_ITEMS.map((item, i) => {
         const theta = ((angle + i * (360 / N)) * Math.PI) / 180;
-        const cx = RADIUS * Math.cos(theta) + RADIUS + 40;
-        const cy = RADIUS * Math.sin(theta) + RADIUS + 40;
+        const cx = RADIUS * Math.cos(theta) + RADIUS + 40 * scale;
+        const cy = RADIUS * Math.sin(theta) + RADIUS + 40 * scale;
         const isHovered = hoveredIdx === i;
+        const itemSize = item.size * scale;
         return (
           <a
             key={item.label}
@@ -864,8 +1062,8 @@ function OrbitRing({ pkgCount }: { pkgCount: number }) {
               position: "absolute",
               left: cx,
               top: cy,
-              width: item.size + 16,
-              height: item.size + 16,
+              width: itemSize + 16,
+              height: itemSize + 16,
               transform: `translate(-50%, -50%) scale(${isHovered ? 1.22 : 1})`,
               transition: "transform 0.25s ease",
               display: "flex",
@@ -876,7 +1074,7 @@ function OrbitRing({ pkgCount }: { pkgCount: number }) {
               zIndex: 10,
             }}
           >
-            <div style={{ width: item.size, height: item.size }}
+            <div style={{ width: itemSize, height: itemSize }}
               dangerouslySetInnerHTML={{ __html: item.svg }}
             />
           </a>
@@ -888,6 +1086,7 @@ function OrbitRing({ pkgCount }: { pkgCount: number }) {
 
 // ── Home page ─────────────────────────────────────────────
 function HomePage({ pkgCount }: { pkgCount: number }) {
+  const isMobile = useIsMobile();
   const [stars, setStars]                 = useState<number | null>(null);
   const [totalContribs, setTotalContribs] = useState<number | null>(null);
 
@@ -912,14 +1111,16 @@ function HomePage({ pkgCount }: { pkgCount: number }) {
   ];
 
   return (
-    <div className="fade-in" style={{ position: "relative", display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center", minHeight: "calc(100vh - 156px)", overflow: "visible" }}>
+    <div className="fade-in" style={{ position: "relative", display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center", minHeight: "calc(100vh - 156px)", overflow: "hidden", width: "100%" }}>
 
       {/* Background logo — position: fixed so it never moves on scroll */}
       <img src="/quartzlinux-colored.svg" alt="" aria-hidden
         style={{
           position: "fixed",
-          width: 1200, height: 1200,
-          bottom: -300, left: -670,
+          width: isMobile ? 700 : 1200,
+          height: isMobile ? 700 : 1200,
+          bottom: isMobile ? -200 : -300,
+          left: isMobile ? -380 : -670,
           filter: "blur(22px)",
           opacity: 0.22,
           pointerEvents: "none",
@@ -930,14 +1131,14 @@ function HomePage({ pkgCount }: { pkgCount: number }) {
       />
 
       {/* Hero text */}
-      <div style={{ position: "relative", zIndex: 3, marginBottom: 36, display: "flex", flexDirection: "column", alignItems: "center" }}>
+      <div style={{ position: "relative", zIndex: 3, marginBottom: isMobile ? 28 : 36, display: "flex", flexDirection: "column", alignItems: "center", width: "100%" }}>
         <h1 style={{
-          fontSize: 64, fontWeight: 800, color: C.white,
-          letterSpacing: "-0.04em", lineHeight: 1, marginBottom: 20,
+          fontSize: isMobile ? 38 : 64, fontWeight: 800, color: C.white,
+          letterSpacing: "-0.04em", lineHeight: 1, marginBottom: isMobile ? 14 : 20,
         }}>
           Quartz Linux
         </h1>
-        <p style={{ fontSize: 16, color: "#b8b8cc", lineHeight: 1.7, maxWidth: 480, margin: "0 auto 28px" }}>
+        <p style={{ fontSize: isMobile ? 13.5 : 16, color: "#b8b8cc", lineHeight: 1.7, maxWidth: isMobile ? 320 : 480, margin: isMobile ? "0 auto 22px" : "0 auto 28px" }}>
           A dev-oriented package manager for Linux. Fast, and human-readable.
           Every package is defined by a{" "}
           <code style={{ fontFamily: "JetBrains Mono", fontSize: 13, background: "#1a1a24", padding: "2px 6px", borderRadius: 4, color: C.orange }}>TOML</code>
@@ -945,8 +1146,8 @@ function HomePage({ pkgCount }: { pkgCount: number }) {
         </p>
 
         {/* CTA Buttons */}
-        <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
-          <button className="hero-btn hero-btn-yellow">
+        <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap", justifyContent: "center" }}>
+          <button className="hero-btn hero-btn-yellow" style={isMobile ? { fontSize: 13, padding: "10px 18px" } : undefined}>
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
               <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
               <polyline points="7 10 12 15 17 10"/>
@@ -954,14 +1155,14 @@ function HomePage({ pkgCount }: { pkgCount: number }) {
             </svg>
             Download ISO
           </button>
-          
+
           <a href={`https://github.com/${OWNER}`}
               target="_blank"
               rel="noreferrer"
               className="hero-btn hero-btn-ghost"
-              style={{ display: "inline-flex", alignItems: "center", gap: 8 }}
+              style={{ display: "inline-flex", alignItems: "center", gap: 8, ...(isMobile ? { fontSize: 13, padding: "10px 18px" } : {}) }}
             >
-        
+
             <svg width="16" height="16" viewBox="0 0 24 24" fill="white" xmlns="http://www.w3.org/2000/svg">
               <path d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0 1 12 6.844a9.59 9.59 0 0 1 2.504.337c1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0 0 22 12.017C22 6.484 17.522 2 12 2z"/>
             </svg>
@@ -971,19 +1172,19 @@ function HomePage({ pkgCount }: { pkgCount: number }) {
       </div>
 
       {/* "Our frameworks" heading + centered orbit ring */}
-      <div style={{ position: "relative", zIndex: 3, display: "flex", flexDirection: "column", alignItems: "center", gap: 12, marginBottom: 28 }}>
-        <h2 style={{ fontSize: 36, fontWeight: 800, color: C.white, letterSpacing: "-0.03em" }}>
+      <div style={{ position: "relative", zIndex: 3, display: "flex", flexDirection: "column", alignItems: "center", gap: 12, marginBottom: isMobile ? 20 : 28 }}>
+        <h2 style={{ fontSize: isMobile ? 26 : 36, fontWeight: 800, color: C.white, letterSpacing: "-0.03em" }}>
           Our frameworks
         </h2>
-        <OrbitRing pkgCount={pkgCount} />
+        <OrbitRing radius={isMobile ? 78 : 110} scale={isMobile ? 0.78 : 1} />
       </div>
 
       {/* Stats box below the orbit ring */}
-      <div className="stat-card" style={{ position: "relative", zIndex: 3, display: "flex", gap: 40, padding: "22px 44px" }}>
+      <div className="stat-card" style={{ position: "relative", zIndex: 3, display: "flex", gap: isMobile ? 24 : 40, padding: isMobile ? "16px 22px" : "22px 44px", flexWrap: "wrap", justifyContent: "center", maxWidth: "100%" }}>
         {stats.map(({ label, value }) => (
-          <div key={label} style={{ textAlign: "center" }}>
-            <div style={{ fontSize: 28, fontWeight: 700, color: C.white, fontFamily: "JetBrains Mono", marginBottom: 4 }}>{value}</div>
-            <div style={{ fontSize: 12, color: C.muted, letterSpacing: "0.04em" }}>{label}</div>
+          <div key={label} style={{ textAlign: "center", minWidth: isMobile ? 80 : undefined }}>
+            <div style={{ fontSize: isMobile ? 22 : 28, fontWeight: 700, color: C.white, fontFamily: "JetBrains Mono", marginBottom: 4 }}>{value}</div>
+            <div style={{ fontSize: isMobile ? 11 : 12, color: C.muted, letterSpacing: "0.04em" }}>{label}</div>
           </div>
         ))}
       </div>
@@ -995,6 +1196,7 @@ function HomePage({ pkgCount }: { pkgCount: number }) {
 type PkgEntry = { name: string; category: string };
 
 function PackagesPage() {
+  const isMobile = useIsMobile();
   const [list, setList]         = useState<PkgEntry[]>([]);
   const [query, setQuery]       = useState("");
   const [selected, setSelected] = useState<string | null>(null);
@@ -1046,96 +1248,123 @@ function PackagesPage() {
     setDetailLoading(false);
   }
 
+  const packageListPanel = (
+    <div style={{
+      width: isMobile ? "100%" : 280,
+      flexShrink: 0,
+      display: "flex",
+      flexDirection: "column",
+      gap: 10,
+    }}>
+      {/* Search */}
+      <div style={{ position: "relative" }}>
+        <svg style={{ position: "absolute", left: 11, top: "50%", transform: "translateY(-50%)", opacity: 0.4, pointerEvents: "none" }}
+          width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={C.text} strokeWidth="2">
+          <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+        </svg>
+        <input className="search-input" type="text" placeholder="Search packages…" value={query} onChange={e => setQuery(e.target.value)} />
+      </div>
+
+      {/* Core / Extra tabs */}
+      <div style={{ display: "flex", gap: 6 }}>
+        <button className={`pkg-tab-btn${pkgTab === "core" ? " active" : ""}`} style={{ flex: 1 }} onClick={() => { setPkgTab("core"); setQuery(""); }}>
+          Core
+          <span style={{ marginLeft: 6, fontSize: 11, color: pkgTab === "core" ? C.purple : C.muted, fontFamily: "JetBrains Mono" }}>
+            {coreList.length > 0 ? coreList.length : ""}
+          </span>
+        </button>
+        <button className={`pkg-tab-btn${pkgTab === "extra" ? " active" : ""}`} style={{ flex: 1 }} onClick={() => { setPkgTab("extra"); setQuery(""); }}>
+          Extra
+          <span style={{ marginLeft: 6, fontSize: 11, color: pkgTab === "extra" ? C.purple : C.muted, fontFamily: "JetBrains Mono" }}>
+            {extraList.length > 0 ? extraList.length : ""}
+          </span>
+        </button>
+      </div>
+
+      {/* Package list */}
+      <div style={{
+        flex: isMobile ? "none" : 1,
+        maxHeight: isMobile ? 220 : undefined,
+        overflowY: "auto",
+        display: "flex",
+        flexDirection: "column",
+        gap: 6,
+        WebkitOverflowScrolling: "touch",
+      }}>
+        {loading
+          ? [1,2,3,4,5,6].map(i => <Skeleton key={i} h={44} />)
+          : displayList.length === 0
+            ? <div style={{ color: C.muted, fontSize: 13, padding: "12px 4px" }}>
+                {query ? "No packages match your search." : `No ${pkgTab} packages found.`}
+              </div>
+            : displayList.map((pkg, i) => (
+              <div key={pkg.name} className={`pkg-card${selected === pkg.name ? " active" : ""} slide-in`}
+                style={{ animationDelay: `${Math.min(i, 20) * 0.03}s` }} onClick={() => selectPkg(pkg.name)}>
+                <span style={{ color: selected === pkg.name ? C.purple : C.blue, fontSize: 10, flexShrink: 0 }}>◆</span>
+                <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{pkg.name}</span>
+                {query && pkg.category === "core" && (
+                  <span style={{ fontSize: 9, color: C.purple, opacity: 0.6, letterSpacing: "0.06em", textTransform: "uppercase" }}>core</span>
+                )}
+              </div>
+            ))
+        }
+      </div>
+    </div>
+  );
+
+  const detailPanel = (
+    <div style={{ flex: 1, overflowY: "auto", minWidth: 0, WebkitOverflowScrolling: "touch" }}>
+      {!selected && !loading && (
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: isMobile ? "auto" : "100%", padding: isMobile ? "32px 0" : 0, gap: 12, color: C.muted }}>
+          <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" opacity={0.4}>
+            <rect x="3" y="3" width="18" height="18" rx="3"/><path d="M9 9h6M9 12h6M9 15h4"/>
+          </svg>
+          <span style={{ fontSize: 13 }}>Select a package to view its details</span>
+        </div>
+      )}
+      {detailLoading && (
+        <div style={{ padding: 4 }}>
+          <Skeleton w="40%" h={24} />
+          <Skeleton w="60%" />
+          <Skeleton w="100%" h={180} />
+        </div>
+      )}
+      {detail && !detailLoading && (
+        <div className="fade-in" style={{ maxWidth: isMobile ? "100%" : 860 }}>
+          <div style={{ marginBottom: 8, display: "flex", alignItems: "baseline", gap: 10, flexWrap: "wrap" }}>
+            <span style={{ fontSize: isMobile ? 22 : 28, fontWeight: 700, color: C.white, wordBreak: "break-word" }}>{detail.package?.name}</span>
+            <span style={{ fontSize: 12, color: C.muted, fontFamily: "JetBrains Mono" }}>v{detail.package?.version}</span>
+            {detail.package?.category === "core" && (
+              <span style={{ fontSize: 10, color: C.purple, border: `1px solid ${C.purple}40`, borderRadius: 4, padding: "2px 7px", letterSpacing: "0.06em", textTransform: "uppercase" }}>core</span>
+            )}
+          </div>
+          <p style={{ fontSize: 14, color: C.muted, marginBottom: 24 }}>{detail.package?.description}</p>
+          {commit && (
+            <>
+              <div style={{ fontSize: 10, letterSpacing: "0.1em", color: C.muted, textTransform: "uppercase", marginBottom: 8 }}>Latest Commit</div>
+              <CommitBadge commit={commit} />
+            </>
+          )}
+          <div style={{ fontSize: 10, letterSpacing: "0.1em", color: C.muted, textTransform: "uppercase", marginBottom: 8 }}>QZMAKE</div>
+          <QZMAKEView pkg={detail} />
+        </div>
+      )}
+    </div>
+  );
+
+  if (isMobile) {
+    return (
+      <div className="fade-in" style={{ display: "flex", flexDirection: "column", gap: 18, width: "100%" }}>
+        {packageListPanel}
+        {detailPanel}
+      </div>
+    );
+  }
+
   return (
     <div className="fade-in" style={{ display: "flex", gap: 28, height: "calc(100vh - 120px)", width: "100%" }}>
-
-      {/* Left: search + Core/Extra tabs + package list */}
-      <div style={{ width: 280, flexShrink: 0, display: "flex", flexDirection: "column", gap: 10 }}>
-        {/* Search */}
-        <div style={{ position: "relative" }}>
-          <svg style={{ position: "absolute", left: 11, top: "50%", transform: "translateY(-50%)", opacity: 0.4, pointerEvents: "none" }}
-            width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={C.text} strokeWidth="2">
-            <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
-          </svg>
-          <input className="search-input" type="text" placeholder="Search packages…" value={query} onChange={e => setQuery(e.target.value)} />
-        </div>
-
-        {/* Core / Extra tabs */}
-        <div style={{ display: "flex", gap: 6 }}>
-          <button className={`pkg-tab-btn${pkgTab === "core" ? " active" : ""}`} style={{ flex: 1 }} onClick={() => { setPkgTab("core"); setQuery(""); }}>
-            Core
-            <span style={{ marginLeft: 6, fontSize: 11, color: pkgTab === "core" ? C.purple : C.muted, fontFamily: "JetBrains Mono" }}>
-              {coreList.length > 0 ? coreList.length : ""}
-            </span>
-          </button>
-          <button className={`pkg-tab-btn${pkgTab === "extra" ? " active" : ""}`} style={{ flex: 1 }} onClick={() => { setPkgTab("extra"); setQuery(""); }}>
-            Extra
-            <span style={{ marginLeft: 6, fontSize: 11, color: pkgTab === "extra" ? C.purple : C.muted, fontFamily: "JetBrains Mono" }}>
-              {extraList.length > 0 ? extraList.length : ""}
-            </span>
-          </button>
-        </div>
-
-        {/* Package list */}
-        <div style={{ flex: 1, overflowY: "auto", display: "flex", flexDirection: "column", gap: 6 }}>
-          {loading
-            ? [1,2,3,4,5,6].map(i => <Skeleton key={i} h={44} />)
-            : displayList.length === 0
-              ? <div style={{ color: C.muted, fontSize: 13, padding: "12px 4px" }}>
-                  {query ? "No packages match your search." : `No ${pkgTab} packages found.`}
-                </div>
-              : displayList.map((pkg, i) => (
-                <div key={pkg.name} className={`pkg-card${selected === pkg.name ? " active" : ""} slide-in`}
-                  style={{ animationDelay: `${Math.min(i, 20) * 0.03}s` }} onClick={() => selectPkg(pkg.name)}>
-                  <span style={{ color: selected === pkg.name ? C.purple : C.blue, fontSize: 10, flexShrink: 0 }}>◆</span>
-                  <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{pkg.name}</span>
-                  {query && pkg.category === "core" && (
-                    <span style={{ fontSize: 9, color: C.purple, opacity: 0.6, letterSpacing: "0.06em", textTransform: "uppercase" }}>core</span>
-                  )}
-                </div>
-              ))
-          }
-        </div>
-      </div>
-
-      {/* Right: package detail — takes full remaining space */}
-      <div style={{ flex: 1, overflowY: "auto", minWidth: 0 }}>
-        {!selected && !loading && (
-          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "100%", gap: 12, color: C.muted }}>
-            <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" opacity={0.4}>
-              <rect x="3" y="3" width="18" height="18" rx="3"/><path d="M9 9h6M9 12h6M9 15h4"/>
-            </svg>
-            <span style={{ fontSize: 13 }}>Select a package to view its details</span>
-          </div>
-        )}
-        {detailLoading && (
-          <div style={{ padding: 4 }}>
-            <Skeleton w="40%" h={24} />
-            <Skeleton w="60%" />
-            <Skeleton w="100%" h={180} />
-          </div>
-        )}
-        {detail && !detailLoading && (
-          <div className="fade-in" style={{ maxWidth: 860 }}>
-            <div style={{ marginBottom: 8, display: "flex", alignItems: "baseline", gap: 10 }}>
-              <span style={{ fontSize: 28, fontWeight: 700, color: C.white }}>{detail.package?.name}</span>
-              <span style={{ fontSize: 12, color: C.muted, fontFamily: "JetBrains Mono" }}>v{detail.package?.version}</span>
-              {detail.package?.category === "core" && (
-                <span style={{ fontSize: 10, color: C.purple, border: `1px solid ${C.purple}40`, borderRadius: 4, padding: "2px 7px", letterSpacing: "0.06em", textTransform: "uppercase" }}>core</span>
-              )}
-            </div>
-            <p style={{ fontSize: 14, color: C.muted, marginBottom: 24 }}>{detail.package?.description}</p>
-            {commit && (
-              <>
-                <div style={{ fontSize: 10, letterSpacing: "0.1em", color: C.muted, textTransform: "uppercase", marginBottom: 8 }}>Latest Commit</div>
-                <CommitBadge commit={commit} />
-              </>
-            )}
-            <div style={{ fontSize: 10, letterSpacing: "0.1em", color: C.muted, textTransform: "uppercase", marginBottom: 8 }}>QZMAKE</div>
-            <QZMAKEView pkg={detail} />
-          </div>
-        )}
-      </div>
+      {packageListPanel}
+      {detailPanel}
     </div>
   );
 }
@@ -1205,12 +1434,12 @@ function ContribPage() {
             <a key={c.login} href={c.url} target="_blank" rel="noreferrer"
               className="contrib-card fade-in"
               style={{ marginBottom: 10, display: "flex", animationDelay: `${i * 0.06}s` }}>
-              <img src={c.avatar} alt={c.login} style={{ width: 40, height: 40, borderRadius: "50%" }} />
-              <div>
-                <div style={{ fontSize: 14, fontWeight: 600, color: C.text }}>{c.login}</div>
+              <img src={c.avatar} alt={c.login} style={{ width: 40, height: 40, borderRadius: "50%", flexShrink: 0 }} />
+              <div style={{ minWidth: 0, overflow: "hidden" }}>
+                <div style={{ fontSize: 14, fontWeight: 600, color: C.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.login}</div>
                 <div style={{ fontSize: 12, color: C.muted }}>{c.contributions} commits</div>
               </div>
-              <div style={{ marginLeft: "auto", fontSize: 11, color: C.purple, alignSelf: "center" }}>#{i + 1}</div>
+              <div style={{ marginLeft: "auto", fontSize: 11, color: C.purple, alignSelf: "center", flexShrink: 0 }}>#{i + 1}</div>
             </a>
           ))
       }
@@ -1220,19 +1449,20 @@ function ContribPage() {
 
 // ── Footer bar ────────────────────────────────────────────
 function FooterBar() {
+  const isMobile = useIsMobile();
   return (
     <div className="footer-bar">
-      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
         <img
           src="/react.svg"
           alt="React"
-          style={{ width: 18, height: 18, opacity: 0.7 }}
+          style={{ width: 18, height: 18, opacity: 0.7, flexShrink: 0 }}
           onError={e => { (e.target as HTMLImageElement).style.display = "none"; }}
         />
-        <span style={{ fontSize: 11, color: C.muted }}>Built with React</span>
+        {!isMobile && <span style={{ fontSize: 11, color: C.muted }}>Built with React</span>}
       </div>
-      <div style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11, color: C.muted }}>
-        website designer{" "}
+      <div style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11, color: C.muted, whiteSpace: "nowrap" }}>
+        {!isMobile && "website designer"}
         <a
           href={`https://github.com/${OWNER}`}
           target="_blank"
@@ -1255,6 +1485,7 @@ function FooterBar() {
 
 // ── Root App ──────────────────────────────────────────────
 export default function App() {
+  const isMobile = useIsMobile();
   const [page, setPage]         = useState<"home" | "packages" | "pkgmgr" | "installation" | "contrib">("home");
   const [pkgCount, setPkgCount] = useState(0);
 
@@ -1263,6 +1494,18 @@ export default function App() {
       .then(r => r.json())
       .then(d => setPkgCount(d.packages?.length ?? 0))
       .catch(() => {});
+  }, []);
+
+  // Lock the page from horizontal panning/zooming on mobile so only
+  // vertical scroll (and the intentional internal swipers) work.
+  useEffect(() => {
+    let meta = document.querySelector('meta[name="viewport"]') as HTMLMetaElement | null;
+    if (!meta) {
+      meta = document.createElement("meta");
+      meta.setAttribute("name", "viewport");
+      document.head.appendChild(meta);
+    }
+    meta.setAttribute("content", "width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover");
   }, []);
 
   const navItems: { key: typeof page; label: string }[] = [
@@ -1279,20 +1522,36 @@ export default function App() {
       <Cursor />
 
       <header style={{
-        position: "fixed", top: 0, left: 0, right: 0, height: 56,
+        position: "fixed", top: 0, left: 0, right: 0,
         background: `${C.bg}ee`, backdropFilter: "blur(12px)",
         borderBottom: `1px solid ${C.border}`,
-        display: "flex", alignItems: "center", justifyContent: "center",
-        padding: "0 24px", zIndex: 50,
+        zIndex: 50,
+        display: "flex",
+        flexDirection: isMobile ? "column" : "row",
+        alignItems: "center",
+        justifyContent: isMobile ? "flex-start" : "center",
+        height: isMobile ? "auto" : 56,
+        padding: isMobile ? "10px 0 8px" : "0 24px",
+        gap: isMobile ? 8 : 0,
       }}>
-        <div style={{ position: "absolute", left: 24, display: "flex", alignItems: "center", gap: 10 }}>
-          <img src="/quartzlinux.svg" alt="Quartz Linux" style={{ width: 24, height: 24 }}
+        <div style={isMobile
+          ? { display: "flex", alignItems: "center", gap: 10, width: "100%", padding: "0 16px" }
+          : { position: "absolute", left: 24, display: "flex", alignItems: "center", gap: 10 }
+        }>
+          <img src="/quartzlinux.svg" alt="Quartz Linux" style={{ width: 24, height: 24, flexShrink: 0 }}
             onError={e => { (e.target as HTMLImageElement).style.display = "none"; }} />
           <span style={{ fontWeight: 700, fontSize: 15, color: C.white, letterSpacing: "-0.02em" }}>Quartz Linux</span>
         </div>
-        <nav style={{ display: "flex", gap: 4 }}>
+        <nav className={isMobile ? "nav-scroll" : undefined} style={{
+          display: "flex",
+          gap: 4,
+          width: isMobile ? "100%" : undefined,
+          padding: isMobile ? "0 16px" : 0,
+        }}>
           {navItems.map(({ key, label }) => (
-            <button key={key} className={`tab-btn${page === key ? " active" : ""}`} onClick={() => setPage(key)}>
+            <button key={key} className={`tab-btn${page === key ? " active" : ""}`}
+              style={isMobile ? { padding: "6px 14px", fontSize: 12.5 } : undefined}
+              onClick={() => setPage(key)}>
               {label}
             </button>
           ))}
@@ -1300,12 +1559,13 @@ export default function App() {
       </header>
 
       <main style={{
-        paddingTop: 96,
-        paddingLeft: 40,
-        paddingRight: 40,
-        paddingBottom: 80,
-        // No maxWidth constraint for full screen usage
+        paddingTop: isMobile ? 108 : 96,
+        paddingLeft: isMobile ? 16 : 40,
+        paddingRight: isMobile ? 16 : 40,
+        paddingBottom: isMobile ? 56 : 80,
         width: "100%",
+        maxWidth: "100vw",
+        overflowX: "hidden",
       }}>
         {page === "home"         && <HomePage pkgCount={pkgCount} />}
         {page === "packages"     && <PackagesPage />}
