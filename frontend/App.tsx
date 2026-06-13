@@ -1139,10 +1139,10 @@ function HomePage({ pkgCount }: { pkgCount: number }) {
           Quartz Linux
         </h1>
         <p style={{ fontSize: isMobile ? 13.5 : 16, color: "#b8b8cc", lineHeight: 1.7, maxWidth: isMobile ? 320 : 480, margin: isMobile ? "0 auto 22px" : "0 auto 28px" }}>
-          A dev-oriented package manager for Linux. Fast, and human-readable.
+          A dev-oriented distribution and package manager.
           Every package is defined by a{" "}
           <code style={{ fontFamily: "JetBrains Mono", fontSize: 13, background: "#1a1a24", padding: "2px 6px", borderRadius: 4, color: C.orange }}>TOML</code>
-          {" "}file that tells Quartz how packages work declaratively.
+          {" "}configuration file that tells Quartz how packages work declaratively.
         </p>
 
         {/* CTA Buttons */}
