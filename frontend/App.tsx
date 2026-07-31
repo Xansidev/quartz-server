@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 
 const SERVER = "https://quartzlinux.vercel.app";
 //For some reason vercel won't update?
@@ -59,52 +59,6 @@ function langColor(name: string) {
 }
 
 // ── Mobile detection ──────────────────────────────────────
-// Kind of a pain in the ass but like wtv.
-// ── My lil :3 (Tiny hash router) ──────────────────────────
-// Hash-based so it works with the existing static hosting setup with no
-// server rewrite rules needed. Routes:
-//   #/                     home
-//   #/packages             package list, nothing selected
-//   #/packages/:name       a single package's page
-//   #/packages/publish     the publish form's own page
-//   #/pkgmgr #/installation #/contrib
-type TopPage = "home" | "packages" | "pkgmgr" | "installation" | "contrib";
-
-interface Route {
-  page: TopPage;
-  pkgName?: string;
-  publishing?: boolean;
-}
-
-function parseRoute(): Route {
-  const raw = window.location.hash.replace(/^#\/?/, "");
-  const [top, sub] = raw.split("/").filter(Boolean);
-
-  if (top === "packages") {
-    if (sub === "publish") return { page: "packages", publishing: true };
-    if (sub) return { page: "packages", pkgName: decodeURIComponent(sub) };
-    return { page: "packages" };
-  }
-  if (top === "pkgmgr" || top === "installation" || top === "contrib") {
-    return { page: top };
-  }
-  return { page: "home" };
-}
-
-function navigate(path: string) {
-  window.location.hash = path;
-}
-
-function useRoute(): Route {
-  const [route, setRoute] = useState<Route>(() => parseRoute());
-  useEffect(() => {
-    const onHashChange = () => setRoute(parseRoute());
-    window.addEventListener("hashchange", onHashChange);
-    return () => window.removeEventListener("hashchange", onHashChange);
-  }, []);
-  return route;
-}
-
 function useIsMobile(breakpoint = 768) {
   const [isMobile, setIsMobile] = useState<boolean>(
     () => typeof window !== "undefined" && window.innerWidth <= breakpoint
@@ -119,8 +73,6 @@ function useIsMobile(breakpoint = 768) {
   return isMobile;
 }
 
-//some yall gonna be looking at me like "damn bro this whole thing but no file for it specifically" idc :3
-
 const globalCSS = `
   @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -133,7 +85,7 @@ const globalCSS = `
     touch-action: pan-y;
     -webkit-overflow-scrolling: touch;
   }
-  body { background: ${C.bg}; color: ${C.text}; font-family: 'Inter', sans-serif; }
+  body { background: ${C.bg}; color: ${C.text}; font-family: 'Inter', sans-serif; cursor: none; }
   ::-webkit-scrollbar { width: 4px; }
   ::-webkit-scrollbar-track { background: ${C.bg}; }
   ::-webkit-scrollbar-thumb { background: ${C.border}; border-radius: 2px; }
@@ -151,16 +103,48 @@ const globalCSS = `
     0%   { background-position: -400px 0; }
     100% { background-position:  400px 0; }
   }
+  @keyframes cursorPulse {
+    0%, 100% { opacity: 0.55; transform: translate(-50%,-50%) scale(1); }
+    50%       { opacity: 0.7;  transform: translate(-50%,-50%) scale(1.08); }
+  }
   .fade-in  { animation: fadeIn  0.35s ease both; }
   .slide-in { animation: slideIn 0.25s ease both; }
 
-  .settings-gear { color: ${C.muted}; }
-  .settings-gear:hover { color: ${C.purple}; }
+  #cursor-dot {
+    position: fixed;
+    width: 8px; height: 8px;
+    background: ${C.purple};
+    border-radius: 50%;
+    pointer-events: none;
+    z-index: 9999;
+    transform: translate(-50%, -50%);
+    transition: transform 0.05s;
+    mix-blend-mode: screen;
+  }
+  #cursor-glow {
+    position: fixed;
+    width: 260px; height: 260px;
+    border-radius: 50%;
+    pointer-events: none;
+    z-index: 2;
+    transform: translate(-50%, -50%);
+    background: radial-gradient(circle, rgba(167,139,250,0.12) 0%, rgba(167,139,250,0.04) 40%, transparent 70%);
+    filter: blur(22px);
+    animation: cursorPulse 3s ease-in-out infinite;
+    mix-blend-mode: screen;
+  }
+
+  /* Hide the custom cursor on touch devices and re-enable a normal cursor */
+  @media (pointer: coarse) {
+    #cursor-dot, #cursor-glow { display: none !important; }
+    *, * { cursor: auto !important; }
+  }
 
   .pkg-card {
     padding: 14px 18px;
-    border-radius: 3px;
-    transition: background 0.15s, transform 0.15s;
+    border-radius: 8px;
+    cursor: none;
+    transition: background 0.15s, border-color 0.15s, transform 0.15s;
     font-size: 13px;
     font-family: 'JetBrains Mono', monospace;
     color: ${C.muted};
@@ -170,42 +154,44 @@ const globalCSS = `
     align-items: center;
     gap: 10px;
   }
-  .pkg-card:hover { background: #1a1a24; color: ${C.text}; transform: translateY(-1px); }
+  .pkg-card:hover { background: #1a1a24; color: ${C.text}; border-color: ${C.purple}40; transform: translateY(-1px); }
   .pkg-card.active { background: #1e1a2e; color: ${C.purple}; border-color: ${C.purple}60; }
 
   .tab-btn {
     padding: 6px 16px;
-    border-radius: 3px;
+    border-radius: 20px;
     border: 1px solid ${C.border};
     background: transparent;
     color: ${C.muted};
     font-size: 13px;
-    transition: background 0.2s, color 0.2s;
+    cursor: none;
+    transition: all 0.2s;
     font-family: 'Inter', sans-serif;
     white-space: nowrap;
     flex-shrink: 0;
   }
-  .tab-btn:hover { color: ${C.text}; }
+  .tab-btn:hover { border-color: ${C.purple}; color: ${C.text}; }
   .tab-btn.active { background: ${C.purple}20; border-color: ${C.purple}; color: ${C.purple}; }
 
   .pkg-tab-btn {
     padding: 7px 20px;
-    border-radius: 3px;
+    border-radius: 6px;
     border: 1px solid ${C.border};
     background: transparent;
     color: ${C.muted};
     font-size: 13px;
     font-weight: 500;
-    transition: background 0.2s, color 0.2s;
+    cursor: none;
+    transition: all 0.2s;
     font-family: 'Inter', sans-serif;
   }
-  .pkg-tab-btn:hover { color: ${C.text}; }
+  .pkg-tab-btn:hover { border-color: ${C.purple}40; color: ${C.text}; }
   .pkg-tab-btn.active { background: ${C.purple}18; border-color: ${C.purple}; color: ${C.purple}; }
 
   .code-block {
     background: #0d0d14;
     border: 1px solid ${C.border};
-    border-radius: 3px;
+    border-radius: 8px;
     padding: 20px 24px;
     font-family: 'JetBrains Mono', monospace;
     font-size: 12.5px;
@@ -220,23 +206,24 @@ const globalCSS = `
   .doc-section h2 { font-size: 20px; font-weight: 600; color: ${C.white}; margin-bottom: 8px; }
   .doc-section h3 { font-size: 14px; font-weight: 500; color: ${C.purple}; margin: 24px 0 8px; text-transform: uppercase; letter-spacing: 0.08em; }
   .doc-section p  { font-size: 14px; color: #b8b8cc; line-height: 1.7; margin-bottom: 12px; }
-  .doc-section code { font-family: 'JetBrains Mono', monospace; font-size: 12px; background: #1a1a24; padding: 2px 6px; border-radius: 3px; color: ${C.blue}; }
+  .doc-section code { font-family: 'JetBrains Mono', monospace; font-size: 12px; background: #1a1a24; padding: 2px 6px; border-radius: 4px; color: ${C.blue}; }
 
   .contrib-card {
     display: flex; align-items: center; gap: 12px;
     padding: 14px 16px;
     border: 1px solid ${C.border};
-    border-radius: 3px;
+    border-radius: 8px;
     background: ${C.surface};
-    transition: transform 0.2s;
+    transition: border-color 0.2s, transform 0.2s;
+    cursor: none;
   }
-  .contrib-card:hover { transform: translateY(-1px); }
+  .contrib-card:hover { border-color: ${C.purple}40; transform: translateY(-1px); }
 
   .skeleton {
     background: linear-gradient(90deg, ${C.surface} 25%, #1a1a24 50%, ${C.surface} 75%);
     background-size: 400px 100%;
     animation: shimmer 1.2s infinite;
-    border-radius: 3px;
+    border-radius: 4px;
     height: 14px;
   }
 
@@ -244,13 +231,14 @@ const globalCSS = `
     width: 100%;
     background: ${C.surface};
     border: 1px solid ${C.border};
-    border-radius: 3px;
+    border-radius: 8px;
     padding: 10px 14px 10px 36px;
     color: ${C.text};
     font-size: 13px;
     font-family: 'Inter', sans-serif;
     outline: none;
     transition: border-color 0.2s;
+    cursor: none;
   }
   .search-input:focus { border-color: ${C.purple}60; }
   .search-input::placeholder { color: ${C.muted}; }
@@ -258,23 +246,24 @@ const globalCSS = `
   .stat-card {
     background: ${C.surface};
     border: 1px solid ${C.border};
-    border-radius: 3px;
+    border-radius: 10px;
     padding: 20px 24px;
-    transition: transform 0.2s;
+    transition: border-color 0.2s, transform 0.2s;
     position: relative;
     z-index: 5;
   }
-  .stat-card:hover { transform: translateY(-2px); }
+  .stat-card:hover { border-color: ${C.purple}40; transform: translateY(-2px); }
 
   .hero-btn {
     display: inline-flex;
     align-items: center;
     gap: 8px;
     padding: 11px 22px;
-    border-radius: 3px;
+    border-radius: 8px;
     font-size: 14px;
     font-weight: 600;
     font-family: 'Inter', sans-serif;
+    cursor: none;
     transition: all 0.2s;
     border: none;
   }
@@ -288,7 +277,7 @@ const globalCSS = `
     color: ${C.text};
     border: 1px solid ${C.border} !important;
   }
-  .hero-btn-ghost:hover { color: ${C.purple}; transform: translateY(-1px); }
+  .hero-btn-ghost:hover { border-color: ${C.purple} !important; color: ${C.purple}; transform: translateY(-1px); }
 
   /* Infinite scroll topics (desktop) */
   .topics-scroll-wrap {
@@ -373,6 +362,7 @@ const globalCSS = `
   }
   .nav-scroll::-webkit-scrollbar { display: none; }
 
+  * { cursor: none !important; }
 
   @media (max-width: 768px) {
     .code-block { font-size: 11px; padding: 14px 16px; line-height: 1.7; }
@@ -384,45 +374,40 @@ const globalCSS = `
   }
 `;
 
-type AuthUser = {
-  githubId: number;
-  username: string;
-  avatarUrl: string;
-  accountAgeOk: boolean;
-  role: "ADMIN" | "TRUSTED_DEV" | "CONTRIBUTOR";
-};
-
-function SettingsGear() {
-  const [open, setOpen] = useState(false);
-  const [rotation, setRotation] = useState(0);
-  const [user, setUser] = useState<AuthUser | null>(null);
-  const [loading, setLoading] = useState(true);
-  const panelRef = useRef<HTMLDivElement>(null);
+function Cursor() {
+  const dotRef  = useRef<HTMLDivElement>(null);
+  const glowRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    // Relative path on purpose!! goes through the Vite proxy in dev,
-    // and same-origin in production. Never hardcode SERVER here.
-    fetch("/auth/me", { credentials: "include" })
-      .then(r => r.json())
-      .then(d => setUser(d.user))
-      .finally(() => setLoading(false));
-  }, []);
+    let ax = window.innerWidth / 2, ay = window.innerHeight / 2;
+    let gx = ax, gy = ay;
+    let raf: number;
 
-  useEffect(() => {
-    function onClickOutside(e: MouseEvent) {
-      if (panelRef.current && !panelRef.current.contains(e.target as Node)) setOpen(false);
+    function onMove(e: MouseEvent) {
+      ax = e.clientX; ay = e.clientY;
+      if (dotRef.current) {
+        dotRef.current.style.left = ax + "px";
+        dotRef.current.style.top  = ay + "px";
+      }
     }
-    document.addEventListener("mousedown", onClickOutside);
-    return () => document.removeEventListener("mousedown", onClickOutside);
-  }, []);
 
-  async function logout() {
-    await fetch("/auth/logout", { method: "POST", credentials: "include" });
-    setUser(null);
-    setOpen(false);
-  }
+    function animate() {
+      gx += (ax - gx) * 0.1;
+      gy += (ay - gy) * 0.1;
+      if (glowRef.current) {
+        glowRef.current.style.left = gx + "px";
+        glowRef.current.style.top  = gy + "px";
+      }
+      raf = requestAnimationFrame(animate);
+    }
+
+    window.addEventListener("mousemove", onMove);
+    raf = requestAnimationFrame(animate);
+    return () => { window.removeEventListener("mousemove", onMove); cancelAnimationFrame(raf); };
+  }, []);
 
   return (
+<<<<<<< HEAD
     <div ref={panelRef} style={{ position: "absolute", right: 24, display: "flex", alignItems: "center" }}>
       <button
         aria-label="Settings"
@@ -466,6 +451,12 @@ function SettingsGear() {
         </div>
       )}
     </div>
+=======
+    <>
+      <div id="cursor-dot"  ref={dotRef}  />
+      <div id="cursor-glow" ref={glowRef} />
+    </>
+>>>>>>> parent of 4530a79 (Massive database overhaul backend and frontend.)
   );
 }
 
@@ -569,12 +560,12 @@ function CommitBadge({ commit }: { commit: CommitInfo }) {
     <a href={commit.url} target="_blank" rel="noreferrer"
       style={{
         display: "flex", alignItems: "center", gap: 10,
-        padding: "10px 14px", borderRadius: 3,
+        padding: "10px 14px", borderRadius: 8,
         border: `1px solid ${C.border}`, background: C.surface,
-        marginBottom: 16, transition: "background 0.2s",
+        marginBottom: 16, transition: "border-color 0.2s",
       }}
-      onMouseEnter={e => (e.currentTarget.style.background = "#1a1a24")}
-      onMouseLeave={e => (e.currentTarget.style.background = C.surface)}
+      onMouseEnter={e => (e.currentTarget.style.borderColor = `${C.purple}50`)}
+      onMouseLeave={e => (e.currentTarget.style.borderColor = C.border)}
     >
       {commit.avatar && (
         <img src={commit.avatar} alt={commit.author}
@@ -889,9 +880,9 @@ function PackageManagerPage() {
         </div>
       )}
       <a href={`https://github.com/${OWNER}/qlpm`} target="_blank" rel="noreferrer"
-        style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12, color: C.purple, borderBottom: `1px solid ${C.purple}40`, paddingBottom: 2, transition: "opacity 0.2s" }}
-        onMouseEnter={e => (e.currentTarget.style.opacity = "0.75")}
-        onMouseLeave={e => (e.currentTarget.style.opacity = "1")}
+        style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12, color: C.purple, borderBottom: `1px solid ${C.purple}40`, paddingBottom: 2 }}
+        onMouseEnter={e => (e.currentTarget.style.borderColor = C.purple)}
+        onMouseLeave={e => (e.currentTarget.style.borderColor = `${C.purple}40`)}
       >
         View on GitHub →
       </a>
@@ -934,7 +925,7 @@ function PackageManagerPage() {
         : filteredTopics.map(t => (
           <div key={t.id} onClick={() => scrollToTopic(t.id)}
             style={{
-              padding: isMobile ? "10px 12px" : "7px 10px", borderRadius: 3, fontSize: 13,
+              padding: isMobile ? "10px 12px" : "7px 10px", borderRadius: 6, cursor: "none", fontSize: 13,
               color: activeTopicId === t.id ? C.purple : C.muted,
               background: activeTopicId === t.id ? "#1e1a2e" : "transparent",
               borderLeft: `2px solid ${activeTopicId === t.id ? C.purple : "transparent"}`,
@@ -1168,6 +1159,23 @@ function HomePage({ pkgCount }: { pkgCount: number }) {
   return (
     <div className="fade-in" style={{ position: "relative", display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center", minHeight: "calc(100vh - 156px)", overflow: "hidden", width: "100%" }}>
 
+      {/* Background logo — position: fixed so it never moves on scroll */}
+      <img src="/quartzlinux-colored.svg" alt="" aria-hidden
+        style={{
+          position: "fixed",
+          width: isMobile ? 700 : 1200,
+          height: isMobile ? 700 : 1200,
+          bottom: isMobile ? -200 : -300,
+          left: isMobile ? -380 : -670,
+          filter: "blur(22px)",
+          opacity: 0.22,
+          pointerEvents: "none",
+          userSelect: "none",
+          zIndex: 0,
+        }}
+        onError={e => { (e.target as HTMLImageElement).style.display = "none"; }}
+      />
+
       {/* Hero text */}
       <div style={{ position: "relative", zIndex: 3, marginBottom: isMobile ? 28 : 36, display: "flex", flexDirection: "column", alignItems: "center", width: "100%" }}>
         <h1 style={{
@@ -1233,114 +1241,18 @@ function HomePage({ pkgCount }: { pkgCount: number }) {
 // ── Packages page (Core / Extra tabs, full screen width) ──
 type PkgEntry = { name: string; category: string };
 
-function CreatePackagePage({ user, onClose, onPublished }: { user: AuthUser; onClose?: () => void; onPublished?: (name: string) => void }) {
-  const [status, setStatus] = useState<"idle" | "saving" | "done" | "error">("idle");
-  const [errorMsg, setErrorMsg] = useState("");
-
-  const [name, setName] = useState("");
-  const [version, setVersion] = useState("");
-  const [description, setDescription] = useState("");
-  const [maintainer, setMaintainer] = useState("");
-  const [tier, setTier] = useState("EXTRA");
-  const [rawToml, setRawToml] = useState(
-    `name = "example-pkg"\nversion = "1.0.0"\ndescription = "A short description"\nmaintainer = "yourname"\n`
-  );
-
-  async function submit() {
-    setStatus("saving");
-    setErrorMsg("");
-    try {
-      const res = await fetch("/packages", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ name, version, description, maintainer, tier, rawToml }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        setStatus("error");
-        setErrorMsg(data.error || "Something went wrong");
-        return;
-      }
-      setStatus("done");
-      onPublished?.(name);
-    } catch {
-      setStatus("error");
-      setErrorMsg("Network error");
-    }
-  }
-
-  const inputStyle: React.CSSProperties = {
-    width: "100%", background: C.bg, border: `1px solid ${C.border}`,
-    borderRadius: 3, padding: "8px 10px", color: C.text, fontSize: 13.5,
-    marginBottom: 14, fontFamily: "inherit",
-  };
-
-  return (
-    <div className="fade-in" style={{ maxWidth: 640 }}>
-      <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 12 }}>
-        <h2 style={{ fontSize: 22, fontWeight: 700, marginBottom: 6, color: C.white }}>Publish a Package</h2>
-        {onClose && (
-          <button className="tab-btn" style={{ cursor: "pointer" }} onClick={onClose}>Cancel</button>
-        )}
-      </div>
-      <p style={{ fontSize: 13, color: C.muted, marginBottom: 24 }}>
-        Publishing as {user.username} ({user.role})
-      </p>
-
-      <label style={{ fontSize: 12.5, color: C.muted }}>Name</label>
-      <input style={inputStyle} value={name} onChange={e => setName(e.target.value)} placeholder="my-package" />
-
-      <label style={{ fontSize: 12.5, color: C.muted }}>Version</label>
-      <input style={inputStyle} value={version} onChange={e => setVersion(e.target.value)} placeholder="1.0.0" />
-
-      <label style={{ fontSize: 12.5, color: C.muted }}>Description</label>
-      <input style={inputStyle} value={description} onChange={e => setDescription(e.target.value)} placeholder="Short description" />
-
-      <label style={{ fontSize: 12.5, color: C.muted }}>Maintainer</label>
-      <input style={inputStyle} value={maintainer} onChange={e => setMaintainer(e.target.value)} placeholder="username" />
-
-      <label style={{ fontSize: 12.5, color: C.muted }}>Tier</label>
-      <select style={inputStyle} value={tier} onChange={e => setTier(e.target.value)}>
-        {user.role === "ADMIN" && <option value="CORE">core</option>}
-        <option value="CORE_EXTRA">core-extra</option>
-        <option value="EXTRA">extra</option>
-        <option value="QCR">qcr</option>
-      </select>
-
-      <label style={{ fontSize: 12.5, color: C.muted }}>QZMAKE (raw TOML)</label>
-      <textarea
-        style={{ ...inputStyle, height: 220, fontFamily: "'JetBrains Mono', monospace", fontSize: 12.5 }}
-        value={rawToml}
-        onChange={e => setRawToml(e.target.value)}
-      />
-
-      <button className="tab-btn" style={{ cursor: "pointer", padding: "8px 20px" }} onClick={submit} disabled={status === "saving"}>
-        {status === "saving" ? "Publishing..." : "Publish Package"}
-      </button>
-
-      {status === "done" && <p style={{ color: "#6ee7b7", fontSize: 13, marginTop: 12 }}>Published successfully.</p>}
-      {status === "error" && <p style={{ color: "#f87171", fontSize: 13, marginTop: 12 }}>{errorMsg}</p>}
-    </div>
-  );
-}
-
-function PackagesPage({ currentUser, pkgName, publishing }: { currentUser: AuthUser | null; pkgName?: string; publishing?: boolean }) {
+function PackagesPage() {
   const isMobile = useIsMobile();
   const [list, setList]         = useState<PkgEntry[]>([]);
   const [query, setQuery]       = useState("");
+  const [selected, setSelected] = useState<string | null>(null);
   const [detail, setDetail]     = useState<PackageDetail | null>(null);
   const [commit, setCommit]     = useState<CommitInfo | null>(null);
   const [loading, setLoading]   = useState(true);
   const [detailLoading, setDetailLoading] = useState(false);
   const [pkgTab, setPkgTab]     = useState<"core" | "extra">("core");
 
-  const selected = pkgName ?? null;
-  const creating = !!publishing;
-  const canPublish = !!currentUser && (currentUser.role === "ADMIN" || currentUser.role === "TRUSTED_DEV");
-
-  function loadPackages() {
-    setLoading(true);
+  useEffect(() => {
     fetch(`${SERVER}/packages`)
       .then(r => r.json())
       .then(d => {
@@ -1353,10 +1265,6 @@ function PackagesPage({ currentUser, pkgName, publishing }: { currentUser: AuthU
         setLoading(false);
       })
       .catch(() => setLoading(false));
-  }
-
-  useEffect(() => {
-    loadPackages();
   }, []);
 
   const coreList  = list.filter(p => p.category === "core");
@@ -1367,50 +1275,28 @@ function PackagesPage({ currentUser, pkgName, publishing }: { currentUser: AuthU
     ? activeList.filter(p => p.name.toLowerCase().includes(query.toLowerCase()))
     : activeList;
 
-  const [notFound, setNotFound] = useState<string | null>(null);
-
   useEffect(() => {
-    if (!selected) {
-      setDetail(null);
-      setCommit(null);
-      setNotFound(null);
-      return;
-    }
-    let cancelled = false;
-    setDetail(null); setCommit(null); setNotFound(null); setDetailLoading(true);
-    (async () => {
-      const [pkgRes, commitsData] = await Promise.all([
-        fetch(`${SERVER}/packages/${selected}`)
-          .then(async r => (r.ok ? { ok: true as const, data: await r.json() } : { ok: false as const })
-          )
-          .catch(() => ({ ok: false as const })),
-        ghFetch(`/repos/${OWNER}/quartz-packages/commits?path=${encodeURIComponent(selected + "/QZMAKE")}&per_page=1`).catch(() => []),
-      ]);
-      if (cancelled) return;
-      if (pkgRes.ok) {
-        setDetail(pkgRes.data);
-      } else {
-        setNotFound(selected);
-      }
-      if (Array.isArray(commitsData) && commitsData.length > 0) {
-        const c = commitsData[0];
-        setCommit({ sha: c.sha, message: c.commit.message.split("\n")[0], author: c.commit.author.name, avatar: c.author?.avatar_url ?? "", url: c.html_url, date: c.commit.author.date });
-      }
-      setDetailLoading(false);
-    })();
-    return () => { cancelled = true; };
-  }, [selected]);
+    setSelected(null);
+    setDetail(null);
+  }, [pkgTab]);
 
-  // Keep the Core/Extra tab in sync with whatever package the URL points to.
-  useEffect(() => {
-    if (detail?.package?.category === "core" || detail?.package?.category === "extra") {
-      setPkgTab(detail.package.category);
+  async function selectPkg(name: string) {
+    setSelected(name); setDetail(null); setCommit(null); setDetailLoading(true);
+    const [pkgRes, commitsData] = await Promise.all([
+      fetch(`${SERVER}/packages/${name}`).then(r => r.json()).catch(() => null),
+      ghFetch(`/repos/${OWNER}/quartz-packages/commits?path=${encodeURIComponent(name + "/QZMAKE")}&per_page=1`).catch(() => []),
+    ]);
+    setDetail(pkgRes);
+    if (Array.isArray(commitsData) && commitsData.length > 0) {
+      const c = commitsData[0];
+      setCommit({ sha: c.sha, message: c.commit.message.split("\n")[0], author: c.commit.author.name, avatar: c.author?.avatar_url ?? "", url: c.html_url, date: c.commit.author.date });
     }
-  }, [detail]);
+    setDetailLoading(false);
+  }
 
   const packageListPanel = (
     <div style={{
-      width: isMobile ? "100%" : 320,
+      width: isMobile ? "100%" : 280,
       flexShrink: 0,
       display: "flex",
       flexDirection: "column",
@@ -1427,28 +1313,18 @@ function PackagesPage({ currentUser, pkgName, publishing }: { currentUser: AuthU
 
       {/* Core / Extra tabs */}
       <div style={{ display: "flex", gap: 6 }}>
-        <button className={`pkg-tab-btn${pkgTab === "core" ? " active" : ""}`} style={{ flex: 1 }} onClick={() => { setPkgTab("core"); setQuery(""); if (selected || creating) navigate("/packages"); }}>
+        <button className={`pkg-tab-btn${pkgTab === "core" ? " active" : ""}`} style={{ flex: 1 }} onClick={() => { setPkgTab("core"); setQuery(""); }}>
           Core
           <span style={{ marginLeft: 6, fontSize: 11, color: pkgTab === "core" ? C.purple : C.muted, fontFamily: "JetBrains Mono" }}>
             {coreList.length > 0 ? coreList.length : ""}
           </span>
         </button>
-        <button className={`pkg-tab-btn${pkgTab === "extra" ? " active" : ""}`} style={{ flex: 1 }} onClick={() => { setPkgTab("extra"); setQuery(""); if (selected || creating) navigate("/packages"); }}>
+        <button className={`pkg-tab-btn${pkgTab === "extra" ? " active" : ""}`} style={{ flex: 1 }} onClick={() => { setPkgTab("extra"); setQuery(""); }}>
           Extra
           <span style={{ marginLeft: 6, fontSize: 11, color: pkgTab === "extra" ? C.purple : C.muted, fontFamily: "JetBrains Mono" }}>
             {extraList.length > 0 ? extraList.length : ""}
           </span>
         </button>
-        {canPublish && (
-          <button
-            className={`pkg-tab-btn${creating ? " active" : ""}`}
-            style={{ flex: "0 0 auto", padding: "7px 14px" }}
-            onClick={() => navigate("/packages/publish")}
-            title="Publish a new package"
-          >
-            + Publish
-          </button>
-        )}
       </div>
 
       {/* Package list */}
@@ -1469,7 +1345,7 @@ function PackagesPage({ currentUser, pkgName, publishing }: { currentUser: AuthU
               </div>
             : displayList.map((pkg, i) => (
               <div key={pkg.name} className={`pkg-card${selected === pkg.name ? " active" : ""} slide-in`}
-                style={{ animationDelay: `${Math.min(i, 20) * 0.03}s` }} onClick={() => navigate(`/packages/${encodeURIComponent(pkg.name)}`)}>
+                style={{ animationDelay: `${Math.min(i, 20) * 0.03}s` }} onClick={() => selectPkg(pkg.name)}>
                 <span style={{ color: selected === pkg.name ? C.purple : C.blue, fontSize: 10, flexShrink: 0 }}>◆</span>
                 <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{pkg.name}</span>
                 {query && pkg.category === "core" && (
@@ -1484,14 +1360,7 @@ function PackagesPage({ currentUser, pkgName, publishing }: { currentUser: AuthU
 
   const detailPanel = (
     <div style={{ flex: 1, overflowY: "auto", minWidth: 0, WebkitOverflowScrolling: "touch" }}>
-      {creating && currentUser && (
-        <CreatePackagePage
-          user={currentUser}
-          onClose={() => navigate("/packages")}
-          onPublished={(name) => { loadPackages(); navigate(`/packages/${encodeURIComponent(name)}`); }}
-        />
-      )}
-      {!creating && !selected && !loading && (
+      {!selected && !loading && (
         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: isMobile ? "auto" : "100%", padding: isMobile ? "32px 0" : 0, gap: 12, color: C.muted }}>
           <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" opacity={0.4}>
             <rect x="3" y="3" width="18" height="18" rx="3"/><path d="M9 9h6M9 12h6M9 15h4"/>
@@ -1506,18 +1375,8 @@ function PackagesPage({ currentUser, pkgName, publishing }: { currentUser: AuthU
           <Skeleton w="100%" h={180} />
         </div>
       )}
-      {notFound && !detailLoading && (
-        <div className="fade-in" style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: isMobile ? "auto" : "100%", padding: isMobile ? "32px 0" : 0, gap: 10, color: C.muted, textAlign: "center" }}>
-          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" opacity={0.4}>
-            <circle cx="12" cy="12" r="9"/><path d="M9.5 9.5l5 5M14.5 9.5l-5 5"/>
-          </svg>
-          <span style={{ fontSize: 14, color: C.text }}>Package not found</span>
-          <span style={{ fontSize: 12.5 }}>There's no package named "{notFound}".</span>
-          <button className="tab-btn" style={{ cursor: "pointer", marginTop: 6 }} onClick={() => navigate("/packages")}>Back to packages</button>
-        </div>
-      )}
       {detail && !detailLoading && (
-        <div className="fade-in" style={{ maxWidth: isMobile ? "100%" : 1100 }}>
+        <div className="fade-in" style={{ maxWidth: isMobile ? "100%" : 860 }}>
           <div style={{ marginBottom: 8, display: "flex", alignItems: "baseline", gap: 10, flexWrap: "wrap" }}>
             <span style={{ fontSize: isMobile ? 22 : 28, fontWeight: 700, color: C.white, wordBreak: "break-word" }}>{detail.package?.name}</span>
             <span style={{ fontSize: 12, color: C.muted, fontFamily: "JetBrains Mono" }}>v{detail.package?.version}</span>
@@ -1525,12 +1384,7 @@ function PackagesPage({ currentUser, pkgName, publishing }: { currentUser: AuthU
               <span style={{ fontSize: 10, color: C.purple, border: `1px solid ${C.purple}40`, borderRadius: 4, padding: "2px 7px", letterSpacing: "0.06em", textTransform: "uppercase" }}>core</span>
             )}
           </div>
-          <p style={{ fontSize: 14, color: C.muted, marginBottom: 12 }}>{detail.package?.description}</p>
-          {detail.package?.maintainer && (
-            <div style={{ fontSize: 12.5, color: C.muted, marginBottom: 24 }}>
-              Maintained by <span style={{ color: C.text }}>{detail.package.maintainer}</span>
-            </div>
-          )}
+          <p style={{ fontSize: 14, color: C.muted, marginBottom: 24 }}>{detail.package?.description}</p>
           {commit && (
             <>
               <div style={{ fontSize: 10, letterSpacing: "0.1em", color: C.muted, textTransform: "uppercase", marginBottom: 8 }}>Latest Commit</div>
@@ -1663,10 +1517,10 @@ function FooterBar() {
             color: C.purple, fontWeight: 600,
             borderBottom: `1px solid ${C.purple}40`,
             paddingBottom: 1,
-            transition: "opacity 0.2s",
+            transition: "border-color 0.2s",
           }}
-          onMouseEnter={e => (e.currentTarget.style.opacity = "0.75")}
-          onMouseLeave={e => (e.currentTarget.style.opacity = "1")}
+          onMouseEnter={e => (e.currentTarget.style.borderColor = C.purple)}
+          onMouseLeave={e => (e.currentTarget.style.borderColor = `${C.purple}40`)}
         >
           @{OWNER}
         </a>
@@ -1678,16 +1532,8 @@ function FooterBar() {
 // ── Root App ──────────────────────────────────────────────
 export default function App() {
   const isMobile = useIsMobile();
-  const route = useRoute();
+  const [page, setPage]         = useState<"home" | "packages" | "pkgmgr" | "installation" | "contrib">("home");
   const [pkgCount, setPkgCount] = useState(0);
-  const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
-
-  useEffect(() => {
-    fetch("/auth/me", { credentials: "include" })
-      .then(r => r.json())
-      .then(d => setCurrentUser(d.user))
-      .catch(() => {});
-  }, []);
 
   useEffect(() => {
     fetch(`${SERVER}/packages`)
@@ -1708,7 +1554,7 @@ export default function App() {
     meta.setAttribute("content", "width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover");
   }, []);
 
-  const navItems: { key: TopPage; label: string }[] = [
+  const navItems: { key: typeof page; label: string }[] = [
     { key: "home",         label: "Home" },
     { key: "packages",     label: "Packages" },
     { key: "pkgmgr",       label: "Package Manager" },
@@ -1719,6 +1565,7 @@ export default function App() {
   return (
     <>
       <style>{globalCSS}</style>
+      <Cursor />
 
       <header style={{
         position: "fixed", top: 0, left: 0, right: 0,
@@ -1748,14 +1595,13 @@ export default function App() {
           padding: isMobile ? "0 16px" : 0,
         }}>
           {navItems.map(({ key, label }) => (
-            <button key={key} className={`tab-btn${route.page === key ? " active" : ""}`}
+            <button key={key} className={`tab-btn${page === key ? " active" : ""}`}
               style={isMobile ? { padding: "6px 14px", fontSize: 12.5 } : undefined}
-              onClick={() => navigate(`/${key === "home" ? "" : key}`)}>
+              onClick={() => setPage(key)}>
               {label}
             </button>
           ))}
         </nav>
-        <SettingsGear />
       </header>
 
       <main style={{
@@ -1767,11 +1613,11 @@ export default function App() {
         maxWidth: "100vw",
         overflowX: "hidden",
       }}>
-        {route.page === "home"         && <HomePage pkgCount={pkgCount} />}
-        {route.page === "packages"     && <PackagesPage currentUser={currentUser} pkgName={route.pkgName} publishing={route.publishing} />}
-        {route.page === "pkgmgr"       && <PackageManagerPage />}
-        {route.page === "installation" && <InstallationPage />}
-        {route.page === "contrib"      && <ContribPage />}
+        {page === "home"         && <HomePage pkgCount={pkgCount} />}
+        {page === "packages"     && <PackagesPage />}
+        {page === "pkgmgr"       && <PackageManagerPage />}
+        {page === "installation" && <InstallationPage />}
+        {page === "contrib"      && <ContribPage />}
       </main>
 
       <FooterBar />

@@ -1,11 +1,19 @@
 {
   "version": 2,
   "builds": [
-    { "src": "src/index.ts", "use": "@vercel/node" }
+    {
+      "src": "src/index.ts",
+      "use": "@vercel/node"
+    }
   ],
   "routes": [
-    { "src": "/packages(.*)", "dest": "src/index.ts" },
-    { "src": "/auth(.*)",    "dest": "src/index.ts" },
-    { "src": "/(.*)",        "dest": "/dist/$1" }
+    {
+      "src": "/packages(.*)",
+      "dest": "src/index.ts"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/dist/$1"
+    }
   ]
 }

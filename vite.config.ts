@@ -11,7 +11,6 @@ export default defineConfig({
   server: {
     proxy: {
       "/packages": "http://localhost:3000",
-      "/auth": "http://localhost:3000",
     },
   },
 });
