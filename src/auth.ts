@@ -1,6 +1,7 @@
 import { Router } from "express";
 import jwt from "jsonwebtoken";
 import { prisma } from "./registry";
+import rateLimit from "express-rate-limit";
 
 const router = Router();
 
@@ -10,7 +11,24 @@ const {
   JWT_SECRET,
   FRONTEND_URL = "http://localhost:5173",
   ADMIN_GITHUB_IDS = "",
+  COOKIE_DOMAIN,
+  NODE_ENV = "development",
 } = process.env;
+
+const requiredEnv = ["GITHUB_CLIENT_ID", "GITHUB_CLIENT_SECRET", "JWT_SECRET"];
+for (const env of requiredEnv) {
+  if (!process.env[env]) {
+    throw new Error(`Missing required environment variable: ${env}`);
+  }
+}
+
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  message: { error: "Too many authentication attempts, please try again later." },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
 
 const adminIds = ADMIN_GITHUB_IDS.split(",").map((id) => id.trim()).filter(Boolean);
 
@@ -38,7 +56,7 @@ router.get("/github", (req, res) => {
   res.redirect(`https://github.com/login/oauth/authorize?${params}`);
 });
 
-router.get("/github/callback", async (req, res) => {
+router.get("/github/callback", authLimiter, async (req, res) => {
   const code = req.query.code as string | undefined;
   if (!code) {
     res.status(400).send("Missing code");
@@ -77,7 +95,6 @@ router.get("/github/callback", async (req, res) => {
       ? "ADMIN"
       : "CONTRIBUTOR";
 
-    // Create the user on first login, keep it in sync on every login after
     await prisma.user.upsert({
       where: { githubId: ghUser.id },
       update: {
@@ -102,19 +119,23 @@ router.get("/github/callback", async (req, res) => {
       role,
     };
 
-    const token = jwt.sign(payload, JWT_SECRET!, { expiresIn: "7d" });
+    const token = jwt.sign(payload, JWT_SECRET, { expiresIn: "7d" });
 
     res.cookie("quartz_session", token, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
+      secure: NODE_ENV === "production",
+      sameSite: "strict",
+      domain: COOKIE_DOMAIN || undefined,
       maxAge: 7 * 24 * 60 * 60 * 1000,
     });
 
     res.redirect(FRONTEND_URL);
   } catch (err) {
     console.error(err);
-    res.status(500).send("OAuth failed");
+    const errorMsg = NODE_ENV === "production" 
+      ? "Authentication failed" 
+      : "OAuth failed";
+    res.status(500).send(errorMsg);
   }
 });
 
@@ -125,7 +146,7 @@ router.get("/me", (req, res) => {
     return;
   }
   try {
-    const payload = jwt.verify(token, JWT_SECRET!) as QuartzJWT;
+    const payload = jwt.verify(token, JWT_SECRET) as QuartzJWT;
     res.json({ user: payload });
   } catch {
     res.status(401).json({ user: null });
@@ -133,6 +154,19 @@ router.get("/me", (req, res) => {
 });
 
 router.post("/logout", (req, res) => {
+  const token = req.cookies?.quartz_session;
+  if (!token) {
+    res.status(400).json({ error: "No active session" });
+    return;
+  }
+  try {
+    jwt.verify(token, JWT_SECRET);
+  } catch {
+    res.clearCookie("quartz_session");
+    res.json({ ok: true });
+    return;
+  }
+  
   res.clearCookie("quartz_session");
   res.json({ ok: true });
 });
