@@ -460,7 +460,7 @@ function SettingsGear() {
             </>
           ) : (
             <a href="/auth/github" className="tab-btn" style={{ width: "100%", textAlign: "center", cursor: "pointer" }}>
-              Add GitHub connection with OAuth
+              GitHub OAuth
             </a>
           )}
         </div>
